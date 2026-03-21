@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: accounts
+    // Fields:
+    //   - name: string (required)
+    //   - size: number (required)
+    //   - type: string (required, enum: Challenge, Funded)
+    //   - propFirm: string
+    //   - profitTarget: number
+    //   - maxDrawdown: number
+    //   - consistencyRule: number
+    //   - initialBalance: number (required)
+    //   - currentBalance: number
+    //   - maxBalance: number
+    //   - userId: string (required)
+    //   - createdAt: timestamp
+    //
+    // Collection: trades
+    // Fields:
+    //   - accountId: string (required)
+    //   - asset: string (required, enum: MNQ, NQ, ES, MES, MGC, GC)
+    //   - direction: string (required, enum: Long, Short)
+    //   - contractSize: number (required)
+    //   - entryPrice: number (required)
+    //   - stopLoss: number
+    //   - takeProfit: number
+    //   - exitPrice: number
+    //   - exitReason: string (enum: TP, SL, Partial Closed, Cut Loss, Breakeven)
+    //   - partialCloseReason: string (enum: Structural, Mental)
+    //   - pnl: number
+    //   - riskReward: number
+    //   - date: timestamp
+    //   - taNotes: string
+    //   - psychologyNotes: string
+    //   - userId: string (required)
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidAccount(data) {
+      return data.keys().hasAll(['name', 'size', 'type', 'initialBalance', 'userId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.size is number && data.size > 0 &&
+             data.type in ['Challenge', 'Funded'] &&
+             data.initialBalance is number &&
+             data.userId == request.auth.uid;
+    }
+
+    function isValidTrade(data) {
+      return data.keys().hasAll(['accountId', 'asset', 'direction', 'contractSize', 'entryPrice', 'userId']) &&
+             data.accountId is string &&
+             data.asset in ['MNQ', 'NQ', 'ES', 'MES', 'MGC', 'GC'] &&
+             data.direction in ['Long', 'Short'] &&
+             data.contractSize is number && data.contractSize > 0 &&
+             data.entryPrice is number &&
+             data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /accounts/{accountId} {
+      allow read, write: if true;
+    }
+
+    match /trades/{tradeId} {
+      allow read, write: if true;
+    }
+
+    match /strategies/{strategyId} {
+      allow read, write: if true;
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-brand-primary: #10b981;
+  --color-brand-secondary: #3b82f6;
+  --color-dashboard-bg: #020617;
+  --color-card-bg: rgba(15, 23, 42, 0.6);
+  --color-border: rgba(30, 41, 59, 0.5);
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-200 font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-slate-900/40 backdrop-blur-xl border border-slate-800/50 shadow-2xl;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:border-emerald-500/30 hover:shadow-[0_0_30px_-10px_rgba(16,185,129,0.2)] hover:-translate-y-1;
+  }
+
+  .active-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .active-glow::after {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/10 to-emerald-500/0 -translate-x-full;
+    animation: shimmer 3s infinite;
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-blink {
+  animation: blink 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-950;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+}
+
+/* Datepicker Overrides */
+.react-datepicker {
+  @apply !bg-slate-900 !border-slate-800 !rounded-2xl !p-4 !font-sans !shadow-2xl !text-white;
+}
+
+.react-datepicker__header {
+  @apply !bg-transparent !border-b-0 !pb-4;
+}
+
+.react-datepicker__current-month {
+  @apply !text-white !font-display !font-bold !text-sm !uppercase !tracking-widest;
+}
+
+.react-datepicker__day-name {
+  @apply !text-slate-500 !font-bold !text-[10px] !uppercase !tracking-widest;
+}
+
+.react-datepicker__day {
+  @apply !text-slate-300 !rounded-xl hover:!bg-emerald-500/20 hover:!text-emerald-400 transition-all;
+}
+
+.react-datepicker__day--selected {
+  @apply !bg-emerald-500 !text-white !font-bold !shadow-lg !shadow-emerald-500/20;
+}
+
+.react-datepicker__day--keyboard-selected {
+  @apply !bg-emerald-500/20 !text-emerald-400;
+}
+
+.react-datepicker__navigation-icon::before {
+  @apply !border-slate-400;
+}

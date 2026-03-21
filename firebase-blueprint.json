@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "Account": {
+      "title": "Account",
+      "description": "Trading account details and Prop Firm rules",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "size": { "type": "number" },
+        "type": { "type": "string", "enum": ["Challenge", "Funded"] },
+        "propFirm": { "type": "string" },
+        "profitTarget": { "type": "number" },
+        "maxDrawdown": { "type": "number" },
+        "consistencyRule": { "type": "number", "description": "Percentage (e.g., 0.4 for 40%)" },
+        "initialBalance": { "type": "number" },
+        "currentBalance": { "type": "number" },
+        "maxBalance": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "size", "type", "initialBalance", "userId"]
+    },
+    "Trade": {
+      "title": "Trade",
+      "description": "Individual trade entry with TA and Psychology data",
+      "type": "object",
+      "properties": {
+        "accountId": { "type": "string" },
+        "asset": { "type": "string", "enum": ["MNQ", "NQ", "ES", "MES", "MGC", "GC"] },
+        "direction": { "type": "string", "enum": ["Long", "Short"] },
+        "contractSize": { "type": "number" },
+        "entryPrice": { "type": "number" },
+        "stopLoss": { "type": "number" },
+        "takeProfit": { "type": "number" },
+        "exitPrice": { "type": "number" },
+        "exitReason": { "type": "string", "enum": ["TP", "SL", "Partial Closed", "Cut Loss", "Breakeven"] },
+        "partialCloseReason": { "type": "string", "enum": ["Structural", "Mental"] },
+        "pnl": { "type": "number" },
+        "riskReward": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "taNotes": { "type": "string" },
+        "psychologyNotes": { "type": "string" },
+        "entryContext": { "type": "string" },
+        "marketRegime": { "type": "string" },
+        "fundamentalContext": { "type": "string" },
+        "exitLogicFollowed": { "type": "boolean" },
+        "psychologyStatus": { "type": "string", "enum": ["Calm", "Exhausted", "Fear", "Greed", "Flow"] },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["accountId", "asset", "direction", "contractSize", "entryPrice", "userId"]
+    },
+    "Strategy": {
+      "title": "Strategy",
+      "description": "Trading strategy rules and psychology factors",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "userId": { "type": "string" },
+        "entry": {
+          "type": "object",
+          "properties": {
+            "context": { "type": "string" },
+            "marketRegime": { "type": "string" },
+            "fundamentalSituation": { "type": "string" }
+          }
+        },
+        "exit": {
+          "type": "object",
+          "properties": {
+            "partialCloseLogic": { "type": "string" },
+            "cutLossLogic": { "type": "string" },
+            "tpLogic": { "type": "string" },
+            "slLogic": { "type": "string" },
+            "moveSLBEStructure": { "type": "string" }
+          }
+        },
+        "psychology": {
+          "type": "object",
+          "properties": {
+            "calmFactors": { "type": "string" },
+            "exhaustFactors": { "type": "string" },
+            "fearFactors": { "type": "string" },
+            "greedFactors": { "type": "string" }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "userId"]
+    }
+  },
+  "firestore": {
+    "/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "User trading accounts"
+    },
+    "/trades/{tradeId}": {
+      "schema": "Trade",
+      "description": "User trade journal entries"
+    },
+    "/strategies/{strategyId}": {
+      "schema": "Strategy",
+      "description": "User trading strategies"
+    }
+  }
+}

@@ -310,7 +310,7 @@ export const AccountCenter: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {accounts.map(acc => (
           <div key={acc.id} className={cn(
-            "glass-card p-8 rounded-3xl space-y-8 relative group transition-all duration-500 hover-glow hover:scale-[1.02] hover:border-blue-500/40",
+            "glass-card p-8 rounded-3xl space-y-8 relative group transition-all duration-500 hover-glow hover:scale-[1.02] hover:border-blue-500/40 hover:z-30",
             acc.type === 'Failed' ? "grayscale opacity-60" : ""
           )}>
             <div className="space-y-6">

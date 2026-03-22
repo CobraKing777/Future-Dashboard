@@ -121,10 +121,10 @@ export const Dashboard: React.FC = () => {
           <span className="text-[8px] sm:text-[10px] text-slate-500 font-black uppercase tracking-widest">{day}</span>
           {pnl !== undefined && (
             <div className={cn(
-              "text-[6px] sm:text-[10px] font-black font-display text-center py-0.5 sm:py-1.5 rounded-md sm:rounded-xl shadow-sm leading-none sm:leading-normal",
+              "text-[7px] sm:text-[10px] font-black font-display text-center py-0.5 sm:py-1.5 rounded-md sm:rounded-xl shadow-sm leading-none sm:leading-normal",
               pnl >= 0 ? 'text-bull bg-bull/10' : 'text-white bg-bear border border-zinc-800'
             )}>
-              {pnl >= 0 ? '+' : ''}{formatCurrency(pnl).replace('.00', '')}
+              {pnl >= 0 ? '+' : ''}{formatCurrency(pnl).replace('.00', '').replace('$', '')}
             </div>
           )}
         </div>

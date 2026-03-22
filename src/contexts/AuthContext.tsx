@@ -25,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: 'dev-user-id',
       displayName: 'Dev Trader',
       email: 'dev@example.com',
-      photoURL: 'https://ui-avatars.com/api/?name=Dev+Trader&background=10b981&color=fff'
+      photoURL: 'https://ui-avatars.com/api/?name=Dev+Trader&background=3b82f6&color=fff'
     } as any);
     setLoading(false);
   }, []);

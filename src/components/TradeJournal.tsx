@@ -345,23 +345,23 @@ export const TradeJournal: React.FC = () => {
 
   return (
     <div className={cn("space-y-8 transition-all", accounts.find(a => a.id === selectedAccountId)?.type === 'Failed' ? "grayscale opacity-75" : "")}>
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold font-mono">TRADE JOURNAL</h1>
-          <p className="text-zinc-500">Record and analyze every execution.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold font-mono">TRADE JOURNAL</h1>
+          <p className="text-xs sm:text-sm text-zinc-500">Record and analyze every execution.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <button
             onClick={() => setShowClearConfirm(true)}
             disabled={isClearingAll}
-            className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
+            className="flex-1 sm:flex-none px-3 py-2 bg-red-500/10 text-red-400 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
           >
-            {isClearingAll ? 'Clearing...' : 'Clear All Trades'}
+            {isClearingAll ? 'Clearing...' : 'Clear All'}
           </button>
           <select
             value={selectedAccountId || ''}
             onChange={(e) => setSelectedAccountId(e.target.value || null)}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
+            className="flex-1 sm:flex-none bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
           >
             <option value="">All Accounts</option>
             {accounts.map(acc => (
@@ -372,7 +372,7 @@ export const TradeJournal: React.FC = () => {
             onClick={() => setShowForm(!showForm)}
             disabled={isNoAccountSelected || isFailed}
             className={cn(
-              "w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all",
+              "w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all shrink-0",
               isNoAccountSelected || isFailed
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"

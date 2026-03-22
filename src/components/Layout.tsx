@@ -186,7 +186,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
 
       {/* Sidebar (Desktop) */}
       <aside 
-        className="hidden md:flex border-r border-slate-800/50 flex-col sticky top-0 h-screen bg-slate-950/50 backdrop-blur-xl w-24 z-50 overflow-visible"
+        className="hidden md:flex border-r border-slate-800/50 flex-col sticky top-0 h-screen bg-slate-950 w-24 z-20 overflow-visible"
       >
         <SidebarContent />
       </aside>
@@ -291,7 +291,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 overflow-x-hidden relative z-10">
         <div className="w-full">
           {children}
         </div>

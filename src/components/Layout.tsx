@@ -88,7 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/trading/200/200';
+              (e.target as HTMLImageElement).src = 'https://drive.google.com/uc?export=download&id=1mz85BOIBtvDuJQmvUCntV5XrgbVokcrg';
             }}
           />
         </div>

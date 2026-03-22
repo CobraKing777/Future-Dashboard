@@ -1,4 +1,4 @@
-import { Account, Trade } from './types';
+import { Account, Trade, TradeExit } from './types';
 
 export const ASSET_TICK_VALUES: Record<string, number> = {
   'NQ': 20, // $20 per point, $5 per tick (0.25)
@@ -14,27 +14,36 @@ export const calculatePnL = (
   direction: 'Long' | 'Short',
   contractSize: number,
   entryPrice: number,
-  exitPrice: number,
-  commissionPerContract: number = 0,
-  partialContracts: number = 0,
-  partialPrice: number = 0
+  exits: TradeExit[],
+  commissionPerContract: number = 0
 ): number => {
   const multiplier = ASSET_TICK_VALUES[asset] || 0;
-  const totalCommission = commissionPerContract * contractSize;
+  
+  let totalPnL = 0;
+  let totalClosedContracts = 0;
 
-  if (partialContracts > 0 && partialPrice > 0) {
-    const diffPartial = direction === 'Long' ? (partialPrice - entryPrice) : (entryPrice - partialPrice);
-    const diffFinal = direction === 'Long' ? (exitPrice - entryPrice) : (entryPrice - exitPrice);
-    
-    const partialPnL = diffPartial * multiplier * partialContracts;
-    const finalPnL = diffFinal * multiplier * (contractSize - partialContracts);
-    
-    return partialPnL + finalPnL - totalCommission;
+  for (const exit of exits) {
+    const diff = direction === 'Long' ? (exit.price - entryPrice) : (entryPrice - exit.price);
+    const exitPnL = diff * multiplier * exit.contracts;
+    totalPnL += exitPnL;
+    totalClosedContracts += exit.contracts;
   }
 
+  const totalCommission = commissionPerContract * totalClosedContracts;
+
+  return totalPnL - totalCommission;
+};
+
+export const calculateExitPnL = (
+  asset: string,
+  direction: 'Long' | 'Short',
+  entryPrice: number,
+  exitPrice: number,
+  contracts: number
+): number => {
+  const multiplier = ASSET_TICK_VALUES[asset] || 0;
   const diff = direction === 'Long' ? (exitPrice - entryPrice) : (entryPrice - exitPrice);
-  const grossPnL = diff * multiplier * contractSize;
-  return grossPnL - totalCommission;
+  return diff * multiplier * contracts;
 };
 
 export const calculateRiskReward = (

@@ -146,10 +146,10 @@ export const StrategyCenter: React.FC = () => {
             <div 
               key={strat.id}
               onClick={() => startEditing(strat)}
-              className="glass-card p-6 rounded-3xl border border-slate-800 hover:border-emerald-500/30 transition-all cursor-pointer group relative"
+              className="glass-card p-6 rounded-3xl border border-slate-800 hover:border-blue-500/30 transition-all cursor-pointer group relative"
             >
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">{strat.name}</h3>
+                <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">{strat.name}</h3>
                 <button 
                   onClick={(e) => handleDelete(strat.id!, e)}
                   className="p-2 text-slate-500 hover:text-red-400 transition-colors"
@@ -159,7 +159,7 @@ export const StrategyCenter: React.FC = () => {
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Target size={14} className="text-emerald-500" />
+                  <Target size={14} className="text-blue-500" />
                   <span className="truncate">{strat.entry.context || 'No entry context'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -171,7 +171,7 @@ export const StrategyCenter: React.FC = () => {
                 <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">
                   Updated {strat.updatedAt?.toDate().toLocaleDateString()}
                 </span>
-                <Edit2 size={14} className="text-slate-600 group-hover:text-emerald-400 transition-colors" />
+                <Edit2 size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
               </div>
             </div>
           ))}
@@ -212,7 +212,7 @@ export const StrategyCenter: React.FC = () => {
           disabled={isSaving || !formData.name?.trim()}
           className={cn(
             "w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all shadow-xl active:scale-95",
-            saveStatus === 'success' ? 'bg-emerald-500 text-white' : 
+            saveStatus === 'success' ? 'bg-blue-500 text-white' : 
             saveStatus === 'error' ? 'bg-red-500 text-white' : 
             'bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed'
           )}
@@ -232,12 +232,12 @@ export const StrategyCenter: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Entry Confirmation */}
-        <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-emerald-500/20 transition-all duration-500 group">
+        <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-blue-500/20 transition-all duration-500 group">
           <SectionHeader 
             icon={Target} 
             title="Entry Confirmation" 
             description="The context and triggers for your trades."
-            color="bg-emerald-500 shadow-emerald-500/20"
+            color="bg-blue-500 shadow-blue-500/20"
           />
           
           <div className="space-y-6">
@@ -247,7 +247,7 @@ export const StrategyCenter: React.FC = () => {
                 value={formData.entry.context}
                 onChange={e => setFormData({ ...formData, entry: { ...formData.entry, context: e.target.value } })}
                 placeholder="What is the higher timeframe narrative?"
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white text-sm leading-relaxed"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white text-sm leading-relaxed"
               />
             </div>
             <div className="space-y-2">
@@ -255,7 +255,7 @@ export const StrategyCenter: React.FC = () => {
               <select
                 value={formData.entry.marketRegime}
                 onChange={e => setFormData({ ...formData, entry: { ...formData.entry, marketRegime: e.target.value } })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white text-sm"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white text-sm"
               >
                 <option value="">Select Regime</option>
                 <option value="HRLR">HRLR</option>
@@ -270,7 +270,7 @@ export const StrategyCenter: React.FC = () => {
                 value={formData.entry.fundamentalSituation}
                 onChange={e => setFormData({ ...formData, entry: { ...formData.entry, fundamentalSituation: e.target.value } })}
                 placeholder="Economic overheat, geopolitical chaos, news events..."
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white text-sm leading-relaxed"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white text-sm leading-relaxed"
               />
             </div>
           </div>
@@ -343,7 +343,7 @@ export const StrategyCenter: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] ml-1">Calm / Flow State</label>
-                  <TrendingUp size={14} className="text-emerald-500" />
+                  <TrendingUp size={14} className="text-blue-500" />
                 </div>
                 <input
                   type="text"

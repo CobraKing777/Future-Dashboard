@@ -15,6 +15,13 @@ export interface Account {
   commissions?: { [key: string]: number };
 }
 
+export interface TradeExit {
+  contracts: number;
+  price: number;
+  reason: 'TP' | 'SL' | 'Partial Closed' | 'Cut Loss' | 'Breakeven';
+  logic?: 'Structural' | 'Mental';
+}
+
 export interface Trade {
   id?: string;
   accountId: string;
@@ -24,11 +31,7 @@ export interface Trade {
   entryPrice: number;
   stopLoss: number;
   takeProfit: number;
-  exitPrice: number;
-  exitReason: 'TP' | 'SL' | 'Partial Closed' | 'Cut Loss' | 'Breakeven';
-  partialContracts?: number;
-  partialPrice?: number;
-  partialCloseReason?: 'Structural' | 'Mental';
+  exits: TradeExit[];
   pnl: number;
   commission: number;
   riskReward: number;
@@ -44,6 +47,8 @@ export interface Trade {
   beforeImage?: string;
   afterImage?: string;
   strategyId?: string;
+  mae?: number; // Maximum Adverse Excursion (Drawdown)
+  mfe?: number; // Maximum Favorable Excursion (Runup)
   userId: string;
   createdAt: any;
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, query, where, onSnapshot, db, Timestamp, doc, updateDoc, getDoc, getDocs, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
-import { Trade, Account, Strategy } from '../types';
-import { formatCurrency, calculatePnL, calculateRiskReward, cn } from '../utils';
+import { Trade, Account, Strategy, TradeExit } from '../types';
+import { formatCurrency, calculatePnL, calculateExitPnL, calculateRiskReward, cn } from '../utils';
+import { InfoTooltip } from './InfoTooltip';
 import { Plus, Calendar, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, ChevronUp, Image as ImageIcon, X, Target, LogOut as ExitIcon, Brain, Info, Shield, Activity, TrendingUp, Edit2, Trash2, Check } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -21,12 +22,21 @@ export const TradeJournal: React.FC = () => {
   const [viewingTrade, setViewingTrade] = useState<Trade | null>(null);
   const [tradeToDelete, setTradeToDelete] = useState<Trade | null>(null);
   const [isClearingAll, setIsClearingAll] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const clearAllTrades = async () => {
     if (!user) return;
-    if (!window.confirm('Are you sure you want to delete ALL trades? This action cannot be undone.')) return;
     
     setIsClearingAll(true);
+    setShowClearConfirm(false);
     try {
       const q = query(collection(db, 'trades'), where('userId', '==', user.uid));
       const snapshot = await getDocs(q);
@@ -34,10 +44,10 @@ export const TradeJournal: React.FC = () => {
       const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
       
-      alert('All trades cleared successfully.');
+      setNotification({ message: 'All trades cleared successfully.', type: 'success' });
     } catch (error) {
       console.error('Error clearing trades:', error);
-      alert('Failed to clear trades.');
+      setNotification({ message: 'Failed to clear trades.', type: 'error' });
     } finally {
       setIsClearingAll(false);
     }
@@ -57,11 +67,7 @@ export const TradeJournal: React.FC = () => {
     entryPrice: 0,
     stopLoss: 0,
     takeProfit: 0,
-    exitPrice: 0,
-    exitReason: 'TP' as any,
-    partialContracts: 0,
-    partialPrice: 0,
-    partialCloseReason: '' as any,
+    exits: [] as TradeExit[],
     date: new Date(),
     beforeImage: '',
     afterImage: '',
@@ -71,6 +77,8 @@ export const TradeJournal: React.FC = () => {
     fundamentalContext: '',
     exitLogicFollowed: true,
     psychologyStatus: 'Calm' as any,
+    mae: 0,
+    mfe: 0,
   });
 
   useEffect(() => {
@@ -151,18 +159,17 @@ export const TradeJournal: React.FC = () => {
 
     const account = accounts.find(a => a.id === formData.accountId);
     const commissionPerContract = account?.commissions?.[formData.asset] || 0;
-    const totalCommission = commissionPerContract * formData.contractSize;
 
     const pnl = calculatePnL(
       formData.asset, 
       formData.direction, 
       formData.contractSize, 
       formData.entryPrice, 
-      formData.exitPrice,
-      commissionPerContract,
-      formData.partialContracts,
-      formData.partialPrice
+      formData.exits,
+      commissionPerContract
     );
+    const totalClosedContracts = formData.exits.reduce((sum, e) => sum + e.contracts, 0);
+    const totalCommission = commissionPerContract * totalClosedContracts;
     const rr = calculateRiskReward(formData.direction, formData.entryPrice, formData.stopLoss, formData.takeProfit);
 
     try {
@@ -240,30 +247,28 @@ export const TradeJournal: React.FC = () => {
       }
 
       setShowForm(false);
-      setFormData({
-        id: '',
-        accountId: accounts[0]?.id || '',
-        strategyId: strategies[0]?.id || '',
-        asset: 'NQ',
-        direction: 'Long',
-        contractSize: 1,
-        entryPrice: 0,
-        stopLoss: 0,
-        takeProfit: 0,
-        exitPrice: 0,
-        exitReason: 'TP',
-        partialContracts: 0,
-        partialPrice: 0,
-        partialCloseReason: '',
-        date: new Date(),
-        beforeImage: '',
-        afterImage: '',
-        entryContext: '',
-        marketRegime: '',
-        fundamentalContext: '',
-        exitLogicFollowed: true,
-        psychologyStatus: 'Calm',
-      });
+    setFormData({
+      id: '',
+      accountId: accounts[0]?.id || '',
+      strategyId: strategies[0]?.id || '',
+      asset: 'NQ',
+      direction: 'Long',
+      contractSize: 1,
+      entryPrice: 0,
+      stopLoss: 0,
+      takeProfit: 0,
+      exits: [],
+      date: new Date(),
+      beforeImage: '',
+      afterImage: '',
+      entryContext: '',
+      marketRegime: '',
+      fundamentalContext: '',
+      exitLogicFollowed: true,
+      psychologyStatus: 'Calm',
+      mae: 0,
+      mfe: 0,
+    });
     } catch (error) {
       console.error('Error saving trade:', error);
     }
@@ -280,11 +285,7 @@ export const TradeJournal: React.FC = () => {
       entryPrice: trade.entryPrice,
       stopLoss: trade.stopLoss,
       takeProfit: trade.takeProfit,
-      exitPrice: trade.exitPrice,
-      exitReason: trade.exitReason,
-      partialContracts: trade.partialContracts || 0,
-      partialPrice: trade.partialPrice || 0,
-      partialCloseReason: trade.partialCloseReason || '',
+      exits: trade.exits || [],
       date: new Date(trade.date),
       beforeImage: trade.beforeImage || '',
       afterImage: trade.afterImage || '',
@@ -293,6 +294,8 @@ export const TradeJournal: React.FC = () => {
       fundamentalContext: trade.fundamentalContext || '',
       exitLogicFollowed: trade.exitLogicFollowed ?? true,
       psychologyStatus: trade.psychologyStatus || 'Calm',
+      mae: trade.mae || 0,
+      mfe: trade.mfe || 0,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -331,6 +334,15 @@ export const TradeJournal: React.FC = () => {
     ? trades.filter(t => t.accountId === selectedAccountId)
     : trades;
 
+  const currentPnL = calculatePnL(
+    formData.asset,
+    formData.direction,
+    formData.contractSize,
+    formData.entryPrice,
+    formData.exits,
+    accounts.find(a => a.id === formData.accountId)?.commissions?.[formData.asset] || 0
+  );
+
   return (
     <div className={cn("space-y-8 transition-all", accounts.find(a => a.id === selectedAccountId)?.type === 'Failed' ? "grayscale opacity-75" : "")}>
       <header className="flex items-center justify-between">
@@ -340,7 +352,7 @@ export const TradeJournal: React.FC = () => {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={clearAllTrades}
+            onClick={() => setShowClearConfirm(true)}
             disabled={isClearingAll}
             className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
           >
@@ -373,7 +385,7 @@ export const TradeJournal: React.FC = () => {
       </header>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 p-8 rounded-2xl space-y-8">
+        <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 p-4 sm:p-8 rounded-2xl space-y-8">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-black uppercase tracking-[0.2em] text-white">
               {formData.id ? 'Edit Trade Execution' : 'Log New Trade Execution'}
@@ -392,11 +404,7 @@ export const TradeJournal: React.FC = () => {
                     entryPrice: 0,
                     stopLoss: 0,
                     takeProfit: 0,
-                    exitPrice: 0,
-                    exitReason: 'TP',
-                    partialContracts: 0,
-                    partialPrice: 0,
-                    partialCloseReason: '',
+                    exits: [] as TradeExit[],
                     date: new Date(),
                     beforeImage: '',
                     afterImage: '',
@@ -405,6 +413,8 @@ export const TradeJournal: React.FC = () => {
                     fundamentalContext: '',
                     exitLogicFollowed: true,
                     psychologyStatus: 'Calm',
+                    mae: 0,
+                    mfe: 0,
                   });
                   setShowForm(false);
                 }}
@@ -448,7 +458,8 @@ export const TradeJournal: React.FC = () => {
               <DatePicker
                 selected={formData.date}
                 onChange={(date: Date | null) => date && setFormData({ ...formData, date })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700 text-sm"
+                wrapperClassName="w-full"
                 dateFormat="yyyy-MM-dd"
               />
             </div>
@@ -495,77 +506,160 @@ export const TradeJournal: React.FC = () => {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Exit Price</label>
-              <input
-                required
-                type="number"
-                step="0.01"
-                value={formData.exitPrice}
-                onChange={e => setFormData({ ...formData, exitPrice: Number(e.target.value) })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Exit Reason</label>
-              <select
-                value={formData.exitReason}
-                onChange={e => setFormData({ ...formData, exitReason: e.target.value as any })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
+          </div>
+
+          {/* Exits Section */}
+          <div className="pt-6 border-t border-zinc-800 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ExitIcon size={16} className="text-blue-500" />
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Exits (Scaling Out)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({
+                  ...formData,
+                  exits: [...formData.exits, { contracts: 0, price: 0, reason: 'TP', logic: 'Structural' }]
+                })}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-500/20 transition-all"
               >
-                <option value="TP">Take Profit</option>
-                <option value="SL">Stop Loss</option>
-                <option value="Partial Closed">Partial Closed</option>
-                <option value="Cut Loss">Cut Loss</option>
-                <option value="Breakeven">Breakeven</option>
-              </select>
+                <Plus size={14} />
+                Add Exit
+              </button>
             </div>
-            {(formData.exitReason === 'Partial Closed' || formData.exitReason === 'Cut Loss') && (
-              <>
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">
-                    {formData.exitReason === 'Partial Closed' ? 'Contracts Closed' : 'Contracts Cut'}
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.partialContracts}
-                    onChange={e => setFormData({ ...formData, partialContracts: Number(e.target.value) })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                    placeholder="Number of contracts"
-                  />
+
+            <div className="grid grid-cols-1 gap-4">
+              {formData.exits.map((exit, index) => (
+                <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-zinc-950/30 p-4 rounded-2xl border border-zinc-800/50 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Closed Contract</label>
+                    <input
+                      type="number"
+                      value={exit.contracts}
+                      onChange={e => {
+                        const newExits = [...formData.exits];
+                        newExits[index].contracts = Number(e.target.value);
+                        setFormData({ ...formData, exits: newExits });
+                      }}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={exit.price}
+                      onChange={e => {
+                        const newExits = [...formData.exits];
+                        newExits[index].price = Number(e.target.value);
+                        setFormData({ ...formData, exits: newExits });
+                      }}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Reason</label>
+                    <select
+                      value={exit.reason}
+                      onChange={e => {
+                        const newExits = [...formData.exits];
+                        newExits[index].reason = e.target.value as any;
+                        // Default logic to Structural when changing reason
+                        if (!newExits[index].logic) newExits[index].logic = 'Structural';
+                        setFormData({ ...formData, exits: newExits });
+                      }}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                    >
+                      <option value="TP">Take Profit</option>
+                      <option value="SL">Stop Loss</option>
+                      <option value="Partial Closed">Partial Closed</option>
+                      <option value="Cut Loss">Cut Loss</option>
+                      <option value="Breakeven">Breakeven</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit Logic</label>
+                    <select
+                      value={exit.logic || 'Structural'}
+                      disabled={!['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason)}
+                      onChange={e => {
+                        const newExits = [...formData.exits];
+                        newExits[index].logic = e.target.value as any;
+                        setFormData({ ...formData, exits: newExits });
+                      }}
+                      className={cn(
+                        "w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700",
+                        !['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason) && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      <option value="Structural">Structural</option>
+                      <option value="Mental">Mental (Fear/Greed)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newExits = formData.exits.filter((_, i) => i !== index);
+                        setFormData({ ...formData, exits: newExits });
+                      }}
+                      className="flex-1 h-10 flex items-center justify-center bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">
-                    {formData.exitReason === 'Partial Closed' ? 'Partial Price' : 'Cut Price'}
-                  </label>
+              ))}
+              {formData.exits.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-zinc-800 rounded-2xl">
+                  <p className="text-xs text-zinc-600 font-bold uppercase tracking-widest">No exits added yet. Add at least one to complete the trade.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Performance Metrics Section */}
+          <div className="pt-6 border-t border-zinc-800 space-y-6">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-blue-500" />
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Performance Metrics</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Drawdown (MAE)</label>
+                <div className="relative">
                   <input
                     type="number"
                     step="0.01"
-                    value={formData.partialPrice}
-                    onChange={e => setFormData({ ...formData, partialPrice: Number(e.target.value) })}
+                    value={formData.mae}
+                    onChange={e => setFormData({ ...formData, mae: Number(e.target.value) })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                    placeholder="Price"
+                    placeholder="Maximum Adverse Excursion"
                   />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-zinc-600 font-bold uppercase">USD</span>
                 </div>
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Reason</label>
-                  <select
-                    value={formData.partialCloseReason}
-                    onChange={e => setFormData({ ...formData, partialCloseReason: e.target.value as any })}
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Runup (MFE)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.mfe}
+                    onChange={e => setFormData({ ...formData, mfe: Number(e.target.value) })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                  >
-                    <option value="">Select Reason</option>
-                    <option value="Structural">Structural (TA)</option>
-                    <option value="Mental">Mental (Psychology)</option>
-                  </select>
+                    placeholder="Maximum Favorable Excursion"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-zinc-600 font-bold uppercase">USD</span>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
           </div>
 
           {/* Strategy Checkpoints Section */}
           <div className="pt-6 border-t border-zinc-800 space-y-6">
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-emerald-500">Strategy Checkpoints</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Strategy Checkpoints</h3>
             
             <div className="bg-zinc-950/30 border border-zinc-800/50 p-6 rounded-2xl space-y-4">
               <div className="flex items-center justify-between">
@@ -600,7 +694,7 @@ export const TradeJournal: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => setFormData({ ...formData, entryContext: selectedStrategy.entry.context })}
-                      className="text-[9px] text-emerald-500 hover:text-emerald-400 font-bold uppercase tracking-tighter"
+                      className="text-[9px] text-blue-500 hover:text-blue-400 font-bold uppercase tracking-tighter"
                     >
                       Auto-fill
                     </button>
@@ -621,7 +715,7 @@ export const TradeJournal: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => setFormData({ ...formData, marketRegime: selectedStrategy.entry.marketRegime })}
-                      className="text-[9px] text-emerald-500 hover:text-emerald-400 font-bold uppercase tracking-tighter"
+                      className="text-[9px] text-blue-500 hover:text-blue-400 font-bold uppercase tracking-tighter"
                     >
                       Auto-fill
                     </button>
@@ -674,7 +768,7 @@ export const TradeJournal: React.FC = () => {
                       onChange={e => setFormData({ ...formData, exitLogicFollowed: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-10 h-6 bg-zinc-800 rounded-full peer peer-checked:bg-emerald-500 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                    <div className="w-10 h-6 bg-zinc-800 rounded-full peer peer-checked:bg-blue-500 transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
                   </div>
                   <span className="text-xs text-zinc-400 font-bold uppercase tracking-widest group-hover:text-zinc-200 transition-colors">Exit Logic Followed</span>
                 </label>
@@ -687,8 +781,8 @@ export const TradeJournal: React.FC = () => {
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest block">Entry Screenshot (Before)</label>
               <div 
                 className={cn(
-                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5 outline-none focus:border-emerald-500/50",
-                  formData.beforeImage ? "border-solid border-emerald-500/30" : ""
+                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-blue-500/50 hover:bg-blue-500/5 outline-none focus:border-blue-500/50",
+                  formData.beforeImage ? "border-solid border-blue-500/30" : ""
                 )}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => onDrop(e, 'beforeImage')}
@@ -697,7 +791,7 @@ export const TradeJournal: React.FC = () => {
                 tabIndex={0}
               >
                 <div className="flex flex-col items-center justify-center py-4 space-y-2">
-                  <ImageIcon size={32} className={cn("transition-colors", formData.beforeImage ? "text-emerald-500" : "text-zinc-600")} />
+                  <ImageIcon size={32} className={cn("transition-colors", formData.beforeImage ? "text-blue-500" : "text-zinc-600")} />
                   <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center">
                     {formData.beforeImage ? "Image Uploaded" : "Drag & Drop or Paste Image"}
                   </p>
@@ -769,65 +863,99 @@ export const TradeJournal: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Drawdown (MAE)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.mae}
+                  onChange={e => setFormData({ ...formData, mae: Number(e.target.value) })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Runup (MFE)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.mfe}
+                  onChange={e => setFormData({ ...formData, mfe: Number(e.target.value) })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-6">
+            {(formData.entryPrice > 0 && formData.exits.length > 0) && (
+              <div className="flex flex-col items-end gap-1 mr-auto">
+                <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Projected PnL</span>
+                <span className={cn(
+                  "text-xl font-bold font-mono tracking-tight",
+                  currentPnL >= 0 ? "text-blue-400" : "text-red-400"
+                )}>
+                  {formatCurrency(currentPnL)}
+                </span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setShowStrategyRef(!showStrategyRef)}
               className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                "w-full sm:w-auto px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
                 showStrategyRef ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
               )}
             >
               <Brain size={14} />
               {showStrategyRef ? "Hide Rules" : "Show Strategy Rules"}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForm(false);
-                setFormData({
-                  id: '',
-                  accountId: accounts[0]?.id || '',
-                  strategyId: strategies[0]?.id || '',
-                  asset: 'NQ',
-                  direction: 'Long',
-                  contractSize: 1,
-                  entryPrice: 0,
-                  stopLoss: 0,
-                  takeProfit: 0,
-                  exitPrice: 0,
-                  exitReason: 'TP',
-                  partialContracts: 0,
-                  partialPrice: 0,
-                  partialCloseReason: '',
-                  date: new Date(),
-                  beforeImage: '',
-                  afterImage: '',
-                  entryContext: '',
-                  marketRegime: '',
-                  fundamentalContext: '',
-                  exitLogicFollowed: true,
-                  psychologyStatus: 'Calm',
-                });
-              }}
-              className="w-12 h-12 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all"
-              title="Cancel"
-            >
-              <X size={24} />
-            </button>
-            <button
-              type="submit"
-              disabled={isNoAccountSelected || isFailed}
-              className={cn(
-                "w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all",
-                isNoAccountSelected || isFailed
-                  ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                  : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
-              )}
-              title={formData.id ? 'Update Trade' : 'Log Trade'}
-            >
-              <Check size={24} />
-            </button>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setFormData({
+                    id: '',
+                    accountId: accounts[0]?.id || '',
+                    strategyId: strategies[0]?.id || '',
+                    asset: 'NQ',
+                    direction: 'Long',
+                    contractSize: 1,
+                    entryPrice: 0,
+                    stopLoss: 0,
+                    takeProfit: 0,
+                    exits: [] as TradeExit[],
+                    date: new Date(),
+                    beforeImage: '',
+                    afterImage: '',
+                    entryContext: '',
+                    marketRegime: '',
+                    fundamentalContext: '',
+                    exitLogicFollowed: true,
+                    psychologyStatus: 'Calm',
+                    mae: 0,
+                    mfe: 0,
+                  });
+                }}
+                className="flex-1 sm:flex-none w-14 h-14 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all"
+                title="Cancel"
+              >
+                <X size={24} />
+              </button>
+              <button
+                type="submit"
+                disabled={isNoAccountSelected || isFailed}
+                className={cn(
+                  "flex-1 sm:flex-none w-14 h-14 flex items-center justify-center rounded-xl font-bold transition-all",
+                  isNoAccountSelected || isFailed
+                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                    : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
+                )}
+                title={formData.id ? 'Update Trade' : 'Log Trade'}
+              >
+                <Check size={24} />
+              </button>
+            </div>
           </div>
 
           {/* Strategy Reference Panel */}
@@ -839,7 +967,7 @@ export const TradeJournal: React.FC = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-zinc-950/50 border border-zinc-800/50 p-5 rounded-2xl space-y-3">
-                  <div className="flex items-center gap-2 text-emerald-500">
+                  <div className="flex items-center gap-2 text-blue-500">
                     <Target size={14} />
                     <span className="text-[10px] font-black uppercase tracking-widest">Entry Rules</span>
                   </div>
@@ -892,15 +1020,16 @@ export const TradeJournal: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-zinc-950/50 border-bottom border-zinc-800">
+              <tr className="bg-zinc-950/50 border-b border-zinc-800">
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Symbol</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Date</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Asset</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Dir</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Entry</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">P/L</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Comm.</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">R:R</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Quantity</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Entry Price</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit Price</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">PL</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Drawdown</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Runup</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Commission</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Strategy</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Reason</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Actions</th>
@@ -910,113 +1039,226 @@ export const TradeJournal: React.FC = () => {
               {filteredTrades
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .map((trade, idx) => (
-                <tr key={trade.id || `trade-${idx}`} className="hover:bg-zinc-800/30 transition-colors group">
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-400">
-                    {new Date(trade.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-bold font-mono">{trade.asset}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className={cn(
-                      "flex items-center gap-1 text-xs font-bold",
-                      trade.direction === 'Long' ? "text-emerald-400" : "text-red-400"
-                    )}>
-                      {trade.direction === 'Long' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                      {trade.direction}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-mono">{trade.entryPrice}</td>
-                  <td className="px-6 py-4 text-sm font-mono">{trade.exitPrice}</td>
-                  <td className={cn(
-                    "px-6 py-4 text-sm font-bold font-mono",
-                    trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}>
-                    {formatCurrency(trade.pnl)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
-                    -{formatCurrency(trade.commission || 0)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-zinc-500 font-mono">{trade.riskReward}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      {trade.strategyId && (
-                        <span className="text-[9px] text-purple-400 font-black uppercase tracking-tighter">
-                          {strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown Strategy'}
-                        </span>
-                      )}
-                      {trade.psychologyStatus && (
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
-                          trade.psychologyStatus === 'Flow' || trade.psychologyStatus === 'Calm' ? "bg-emerald-500/10 text-emerald-400" :
-                          trade.psychologyStatus === 'Fear' || trade.psychologyStatus === 'Greed' ? "bg-red-500/10 text-red-400" :
-                          "bg-zinc-800 text-zinc-400"
+                  <React.Fragment key={trade.id || `trade-${idx}`}>
+                    {trade.exits.length > 0 ? (
+                      trade.exits.map((exit, exitIdx) => (
+                        <tr 
+                          key={`${trade.id}-exit-${exitIdx}`} 
+                          className={cn(
+                            "hover:bg-zinc-800/30 transition-colors group",
+                            exitIdx !== 0 && "border-t border-zinc-800/30"
+                          )}
+                        >
+                          <td className="px-6 py-4">
+                            {exitIdx === 0 ? <span className="text-sm font-bold font-mono">{trade.asset}</span> : ''}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-medium text-zinc-400">
+                            {exitIdx === 0 ? new Date(trade.date).toLocaleDateString() : ''}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "text-sm font-bold font-mono",
+                              trade.direction === 'Long' ? "text-blue-400" : "text-red-400"
+                            )}>
+                              {trade.direction === 'Long' ? '+' : '-'}{exit.contracts}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm font-mono">
+                            {exitIdx === 0 ? trade.entryPrice : ''}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-mono">
+                            {exit.price}
+                          </td>
+                          <td className={cn(
+                            "px-6 py-4 text-sm font-bold font-mono",
+                            calculateExitPnL(trade.asset, trade.direction, trade.entryPrice, exit.price, exit.contracts) >= 0 ? "text-blue-400" : "text-red-400"
+                          )}>
+                            {formatCurrency(calculateExitPnL(trade.asset, trade.direction, trade.entryPrice, exit.price, exit.contracts))}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
+                            {exitIdx === 0 ? (trade.mae ? `-${formatCurrency(trade.mae)}` : '-') : ''}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-blue-400/70 font-mono">
+                            {exitIdx === 0 ? (trade.mfe ? formatCurrency(trade.mfe) : '-') : ''}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
+                            {exitIdx === 0 ? `-${formatCurrency(trade.commission || 0)}` : ''}
+                          </td>
+                          <td className="px-6 py-4">
+                            {exitIdx === 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {trade.strategyId && (
+                                  <span className="text-[9px] text-purple-400 font-black uppercase tracking-tighter">
+                                    {strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown Strategy'}
+                                  </span>
+                                )}
+                                {trade.psychologyStatus && (
+                                  <span className={cn(
+                                    "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
+                                    trade.psychologyStatus === 'Flow' || trade.psychologyStatus === 'Calm' ? "bg-blue-500/10 text-blue-400" :
+                                    trade.psychologyStatus === 'Fear' || trade.psychologyStatus === 'Greed' ? "bg-red-500/10 text-red-400" :
+                                    "bg-zinc-800 text-zinc-400"
+                                  )}>
+                                    {trade.psychologyStatus}
+                                  </span>
+                                )}
+                                {trade.exitLogicFollowed !== undefined && (
+                                  <span className={cn(
+                                    "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
+                                    trade.exitLogicFollowed ? "bg-blue-500/10 text-blue-400" : "bg-amber-500/10 text-amber-400"
+                                  )}>
+                                    {trade.exitLogicFollowed ? 'Exit Followed' : 'Exit Deviated'}
+                                  </span>
+                                )}
+                              </div>
+                            ) : ''}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded-md font-bold uppercase tracking-widest text-zinc-400 w-fit">
+                                {exit.reason}
+                              </span>
+                              {exit.logic && (
+                                <span className={cn(
+                                  "text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded w-fit",
+                                  exit.logic === 'Structural' ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-400"
+                                )}>
+                                  {exit.logic}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {exitIdx === 0 ? (
+                              <div className="flex items-center gap-1">
+                                <button 
+                                  onClick={() => setViewingTrade(trade)}
+                                  className="p-2 text-zinc-500 hover:text-zinc-200 transition-all"
+                                  title="View Details"
+                                >
+                                  <ImageIcon size={16} />
+                                </button>
+                                {(() => {
+                                  const tradeAccount = accounts.find(a => a.id === trade.accountId);
+                                  const isTradeAccountFailed = tradeAccount?.type === 'Failed';
+                                  return (
+                                    <>
+                                      <button 
+                                        onClick={() => handleEdit(trade)}
+                                        disabled={isTradeAccountFailed}
+                                        className={cn(
+                                          "p-2 transition-all",
+                                          isTradeAccountFailed 
+                                            ? "text-zinc-800 cursor-not-allowed" 
+                                            : "text-zinc-500 hover:text-blue-400"
+                                        )}
+                                        title={isTradeAccountFailed ? "Cannot edit trades for a failed account" : "Edit Trade"}
+                                      >
+                                        <Edit2 size={16} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDelete(trade)}
+                                        disabled={isTradeAccountFailed}
+                                        className={cn(
+                                          "p-2 transition-all",
+                                          isTradeAccountFailed 
+                                            ? "text-zinc-800 cursor-not-allowed" 
+                                            : "text-zinc-500 hover:text-red-400"
+                                        )}
+                                        title={isTradeAccountFailed ? "Cannot delete trades for a failed account" : "Delete Trade"}
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            ) : ''}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="hover:bg-zinc-800/30 transition-colors group">
+                        <td className="px-6 py-4 text-sm font-medium text-zinc-400">
+                          {new Date(trade.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-bold font-mono">{trade.asset}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className={cn(
+                            "flex items-center gap-1 text-xs font-bold",
+                            trade.direction === 'Long' ? "text-blue-400" : "text-red-400"
+                          )}>
+                            {trade.direction === 'Long' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                            {trade.direction}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-mono">{trade.entryPrice}</td>
+                        <td className="px-6 py-4 text-sm font-mono text-zinc-600 italic">No exits recorded</td>
+                        <td className={cn(
+                          "px-6 py-4 text-sm font-bold font-mono",
+                          trade.pnl >= 0 ? "text-blue-400" : "text-red-400"
                         )}>
-                          {trade.psychologyStatus}
-                        </span>
-                      )}
-                      {trade.exitLogicFollowed !== undefined && (
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
-                          trade.exitLogicFollowed ? "bg-blue-500/10 text-blue-400" : "bg-amber-500/10 text-amber-400"
-                        )}>
-                          {trade.exitLogicFollowed ? 'Exit Followed' : 'Exit Deviated'}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded-md font-bold uppercase tracking-widest text-zinc-400">
-                      {trade.exitReason}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1">
-                      <button 
-                        onClick={() => setViewingTrade(trade)}
-                        className="p-2 text-zinc-500 hover:text-zinc-200 transition-all"
-                        title="View Details"
-                      >
-                        <ImageIcon size={16} />
-                      </button>
-                      {(() => {
-                        const tradeAccount = accounts.find(a => a.id === trade.accountId);
-                        const isTradeAccountFailed = tradeAccount?.type === 'Failed';
-                        return (
-                          <>
+                          {formatCurrency(trade.pnl)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
+                          -{formatCurrency(trade.commission || 0)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-zinc-500 font-mono">{trade.riskReward}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            {trade.strategyId && (
+                              <span className="text-[9px] text-purple-400 font-black uppercase tracking-tighter">
+                                {strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown Strategy'}
+                              </span>
+                            )}
+                            {trade.psychologyStatus && (
+                              <span className={cn(
+                                "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
+                                trade.psychologyStatus === 'Flow' || trade.psychologyStatus === 'Calm' ? "bg-blue-500/10 text-blue-400" :
+                                trade.psychologyStatus === 'Fear' || trade.psychologyStatus === 'Greed' ? "bg-red-500/10 text-red-400" :
+                                "bg-zinc-800 text-zinc-400"
+                              )}>
+                                {trade.psychologyStatus}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded-md font-bold uppercase tracking-widest text-zinc-400">
+                            N/A
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => setViewingTrade(trade)}
+                              className="p-2 text-zinc-500 hover:text-zinc-200 transition-all"
+                              title="View Details"
+                            >
+                              <ImageIcon size={16} />
+                            </button>
                             <button 
                               onClick={() => handleEdit(trade)}
-                              disabled={isTradeAccountFailed}
-                              className={cn(
-                                "p-2 transition-all",
-                                isTradeAccountFailed 
-                                  ? "text-zinc-800 cursor-not-allowed" 
-                                  : "text-zinc-500 hover:text-emerald-400"
-                              )}
-                              title={isTradeAccountFailed ? "Cannot edit trades for a failed account" : "Edit Trade"}
+                              className="p-2 text-zinc-500 hover:text-blue-400 transition-all"
+                              title="Edit Trade"
                             >
                               <Edit2 size={16} />
                             </button>
                             <button 
                               onClick={() => handleDelete(trade)}
-                              disabled={isTradeAccountFailed}
-                              className={cn(
-                                "p-2 transition-all",
-                                isTradeAccountFailed 
-                                  ? "text-zinc-800 cursor-not-allowed" 
-                                  : "text-zinc-500 hover:text-red-400"
-                              )}
-                              title={isTradeAccountFailed ? "Cannot delete trades for a failed account" : "Delete Trade"}
+                              className="p-2 text-zinc-500 hover:text-red-400 transition-all"
+                              title="Delete Trade"
                             >
                               <Trash2 size={16} />
                             </button>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
             </tbody>
           </table>
         </div>
@@ -1038,7 +1280,7 @@ export const TradeJournal: React.FC = () => {
                 </div>
                 <span className={cn(
                   "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                  viewingTrade.pnl >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                  viewingTrade.pnl >= 0 ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"
                 )}>
                   {formatCurrency(viewingTrade.pnl)}
                 </span>
@@ -1054,7 +1296,7 @@ export const TradeJournal: React.FC = () => {
               {/* Strategy Checkpoints Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="glass-card p-6 rounded-2xl border-zinc-800/50 space-y-4">
-                  <div className="flex items-center gap-3 text-emerald-500">
+                  <div className="flex items-center gap-3 text-blue-500">
                     <Target size={18} />
                     <h4 className="text-xs font-black uppercase tracking-widest">Entry Context</h4>
                   </div>
@@ -1074,33 +1316,84 @@ export const TradeJournal: React.FC = () => {
                     <ExitIcon size={18} />
                     <h4 className="text-xs font-black uppercase tracking-widest">Exit Logic</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Compliance:</span>
-                      <span className={cn(
-                        "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
-                        viewingTrade.exitLogicFollowed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                      )}>
-                        {viewingTrade.exitLogicFollowed ? 'Followed' : 'Deviated'}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase">Reason: <span className="text-zinc-100">{viewingTrade.exitReason}</span></p>
-                    {(viewingTrade.exitReason === 'Partial Closed' || viewingTrade.exitReason === 'Cut Loss') && (
-                      <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2">
-                        <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest">
-                          <span className="text-zinc-500">Contracts:</span>
-                          <span className="text-zinc-100">{viewingTrade.partialContracts}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest">
-                          <span className="text-zinc-500">Price:</span>
-                          <span className="text-zinc-100">{viewingTrade.partialPrice}</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] uppercase font-bold tracking-widest">
-                          <span className="text-zinc-500">Reason:</span>
-                          <span className="text-zinc-100">{viewingTrade.partialCloseReason || 'N/A'}</span>
-                        </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase">Compliance:</span>
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
+                          viewingTrade.exitLogicFollowed ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"
+                        )}>
+                          {viewingTrade.exitLogicFollowed ? 'Followed' : 'Deviated'}
+                        </span>
                       </div>
-                    )}
+                      
+                      <div className="space-y-3">
+                        <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest border-b border-zinc-800 pb-2">Exit Breakdown</p>
+                        {viewingTrade.exits.map((exit, idx) => (
+                          <div key={idx} className="bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/50 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded font-black text-zinc-400 uppercase tracking-tighter">Exit #{idx + 1}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-zinc-500 uppercase font-bold">Price</span>
+                                <span className="text-sm font-mono font-bold text-zinc-100">{exit.price}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-zinc-500 uppercase font-bold">Contracts</span>
+                                <span className="text-sm font-mono font-bold text-zinc-100">{exit.contracts}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] text-zinc-500 uppercase font-bold">Reason</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-300 italic">"{exit.reason}"</span>
+                                {exit.logic && (
+                                  <span className={cn(
+                                    "text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded",
+                                    exit.logic === 'Structural' ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-400"
+                                  )}>
+                                    {exit.logic}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-zinc-800/50">
+                              <span className="text-[9px] text-zinc-500 uppercase font-bold">Exit PnL</span>
+                              <span className={cn(
+                                "text-xs font-mono font-bold",
+                                calculateExitPnL(viewingTrade.asset, viewingTrade.direction, viewingTrade.entryPrice, exit.price, exit.contracts) >= 0 ? "text-blue-400" : "text-red-400"
+                              )}>
+                                {formatCurrency(calculateExitPnL(viewingTrade.asset, viewingTrade.direction, viewingTrade.entryPrice, exit.price, exit.contracts))}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {viewingTrade.exits.length === 0 && (
+                          <p className="text-xs text-zinc-500 italic">No exits recorded for this trade.</p>
+                        )}
+                      </div>
+                    </div>
+                </div>
+
+                <div className="glass-card p-6 rounded-2xl border-zinc-800/50 space-y-4">
+                  <div className="flex items-center gap-3 text-blue-500">
+                    <Activity size={18} />
+                    <h4 className="text-xs font-black uppercase tracking-widest">Performance</h4>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Drawdown (MAE):</span>
+                      <span className="text-sm font-mono font-bold text-red-400">-{formatCurrency(viewingTrade.mae || 0)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Runup (MFE):</span>
+                      <span className="text-sm font-mono font-bold text-blue-400">{formatCurrency(viewingTrade.mfe || 0)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Risk:Reward:</span>
+                      <span className="text-sm font-mono font-bold text-zinc-100">{viewingTrade.riskReward?.toFixed(2) || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1114,7 +1407,7 @@ export const TradeJournal: React.FC = () => {
                       <span className="text-[10px] text-zinc-500 font-bold uppercase">Status:</span>
                       <span className={cn(
                         "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded",
-                        viewingTrade.psychologyStatus === 'Flow' || viewingTrade.psychologyStatus === 'Calm' ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                        viewingTrade.psychologyStatus === 'Flow' || viewingTrade.psychologyStatus === 'Calm' ? "bg-blue-500/10 text-blue-400" : "bg-red-500/10 text-red-400"
                       )}>
                         {viewingTrade.psychologyStatus || 'N/A'}
                       </span>
@@ -1174,6 +1467,40 @@ export const TradeJournal: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-white mb-2">Clear All Trades</h3>
+            <p className="text-zinc-400 mb-6">
+              Are you sure you want to delete ALL trades? This action cannot be undone and will not revert account balances.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-3 px-4 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearAllTrades}
+                className="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-400 transition-all shadow-lg shadow-red-500/20"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notification && (
+        <div className={cn(
+          "fixed bottom-8 right-8 z-[110] px-6 py-4 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 flex items-center gap-3",
+          notification.type === 'success' ? "bg-blue-500 text-white" : "bg-red-500 text-white"
+        )}>
+          {notification.type === 'success' ? <Check size={20} /> : <X size={20} />}
+          <span className="font-bold text-sm">{notification.message}</span>
         </div>
       )}
     </div>

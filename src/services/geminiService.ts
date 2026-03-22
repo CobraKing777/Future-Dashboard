@@ -11,8 +11,7 @@ export const analyzePerformance = async (trades: Trade[], account: Account): Pro
     direction: t.direction,
     pnl: t.pnl,
     commission: t.commission,
-    exitReason: t.exitReason,
-    partialCloseReason: t.partialCloseReason,
+    exits: t.exits.map(e => ({ price: e.price, contracts: e.contracts, reason: e.reason, logic: e.logic })),
     date: new Date(t.date).toLocaleDateString(),
   }));
 

@@ -6,10 +6,11 @@ import { AccountCenter } from './components/AccountCenter';
 import { TradeJournal } from './components/TradeJournal';
 import { StrategyCenter } from './components/Strategy';
 import { AIInsights } from './components/AIInsights';
+import { ReferenceTab } from './components/ReferenceTab';
 import { AuthProvider } from './contexts/AuthContext';
 import { useState } from 'react';
 
-type View = 'dashboard' | 'accounts' | 'journal' | 'ai' | 'strategy';
+type View = 'dashboard' | 'accounts' | 'journal' | 'ai' | 'strategy' | 'reference';
 
 const AppContent: React.FC = () => {
   const { user, loading, login } = useAuth();
@@ -30,6 +31,7 @@ const AppContent: React.FC = () => {
       case 'journal': return <TradeJournal />;
       case 'ai': return <AIInsights />;
       case 'strategy': return <StrategyCenter />;
+      case 'reference': return <ReferenceTab />;
       default: return <Dashboard />;
     }
   };

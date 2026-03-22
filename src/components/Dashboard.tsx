@@ -189,7 +189,7 @@ export const Dashboard: React.FC = () => {
           <select
             value={selectedAccountId || ''}
             onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="bg-slate-900/50 border border-slate-800 text-white rounded-2xl pl-14 pr-12 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all appearance-none cursor-pointer min-w-[280px] shadow-xl"
+            className="bg-slate-900/50 border border-slate-800 text-white rounded-2xl pl-14 pr-12 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none cursor-pointer min-w-[280px] shadow-xl"
           >
             {accounts.map(acc => (
               <option key={acc.id} value={acc.id} className="bg-slate-900 text-white">
@@ -197,7 +197,7 @@ export const Dashboard: React.FC = () => {
               </option>
             ))}
           </select>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-emerald-400 transition-colors">
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-blue-400 transition-colors">
             <ChevronRight size={18} className="rotate-90" />
           </div>
         </div>
@@ -206,14 +206,14 @@ export const Dashboard: React.FC = () => {
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {metrics.map((m, i) => (
-          <div key={i} className="glass-card p-8 rounded-3xl space-y-6 hover-glow transition-all duration-500 group">
+          <div key={i} className="glass-card p-4 sm:p-8 rounded-3xl space-y-6 hover-glow transition-all duration-500 group">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] group-hover:text-emerald-500/70 transition-colors">{m.label}</span>
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] group-hover:text-blue-500/70 transition-colors">{m.label}</span>
                 <InfoTooltip content={m.tooltip.content} formula={m.tooltip.formula} />
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-slate-950/50 flex items-center justify-center border border-slate-800 group-hover:border-emerald-500/30 transition-all duration-500 group-hover:scale-110">
-                <m.icon size={22} className="text-slate-400 group-hover:text-emerald-400 transition-colors" />
+              <div className="w-12 h-12 rounded-2xl bg-slate-950/50 flex items-center justify-center border border-slate-800 group-hover:border-blue-500/30 transition-all duration-500 group-hover:scale-110">
+                <m.icon size={22} className="text-slate-400 group-hover:text-blue-400 transition-colors" />
               </div>
             </div>
             <p className={`text-3xl md:text-4xl font-bold font-display tracking-tight ${m.color || 'text-white'}`}>{m.value}</p>
@@ -223,7 +223,7 @@ export const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Equity Curve */}
-        <div className="lg:col-span-2 glass-card p-8 rounded-3xl space-y-8 hover:border-emerald-500/20 transition-colors duration-500">
+        <div className="lg:col-span-2 glass-card p-4 sm:p-8 rounded-3xl space-y-8 hover:border-blue-500/20 transition-colors duration-500">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Equity Curve</h2>
             <div className="flex items-center gap-3 bg-slate-950/50 px-4 py-2 rounded-xl border border-slate-800">
@@ -286,12 +286,22 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Rules & Status */}
-        <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-emerald-500/20 transition-colors duration-500">
+        <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-blue-500/20 transition-colors duration-500">
           <h2 className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Prop Firm Status</h2>
           <div className="space-y-6">
-            <div className="flex items-center justify-between p-6 bg-slate-950/50 rounded-2xl border border-slate-800 group hover:border-emerald-500/30 transition-all duration-300">
+            <div className="flex items-center justify-between p-6 bg-slate-950/50 rounded-2xl border border-slate-800 group hover:border-blue-500/30 transition-all duration-300">
               <div className="space-y-1">
-                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Consistency Rule</p>
+                <div className="flex items-center">
+                  <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Consistency Rule</p>
+                  <InfoTooltip 
+                    content={selectedAccount?.type === 'Challenge' || selectedAccount?.type === 'Failed' 
+                      ? 'For challenges, your maximum daily profit must not exceed a certain percentage of your profit target.' 
+                      : 'For funded accounts, your maximum daily profit must not exceed a certain percentage of your total profit.'}
+                    formula={selectedAccount?.type === 'Challenge' || selectedAccount?.type === 'Failed'
+                      ? 'Max Daily Profit <= Profit Target * Consistency %'
+                      : 'Max Daily Profit / Total Profit <= Consistency %'}
+                  />
+                </div>
                 <p className="text-base font-bold text-white font-display">{isConsistent ? 'Obeying' : 'Violated'}</p>
               </div>
               <div className={cn(
@@ -332,7 +342,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Daily P/L Calendar */}
-      <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-emerald-500/20 transition-colors duration-500">
+      <div className="glass-card p-8 rounded-3xl space-y-8 hover:border-blue-500/20 transition-colors duration-500">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <h2 className="text-xs font-black uppercase tracking-[0.25em] text-slate-500 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-slate-950/50 flex items-center justify-center border border-slate-800">

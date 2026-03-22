@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, BookOpen, Wallet, BrainCircuit, Target, LogOut, Menu, X, Upload, Check, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, BrainCircuit, Target, LogOut, Menu, X, Upload, Check, AlertCircle, Library } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -75,12 +75,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
     { id: 'journal', label: 'Journal', icon: BookOpen },
     { id: 'strategy', label: 'Strategy', icon: Target },
     { id: 'ai', label: 'AI Insights', icon: BrainCircuit },
+    { id: 'reference', label: 'Reference', icon: Library },
   ];
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full py-6 space-y-8">
       <div className="flex flex-col items-center px-2 mb-4">
-        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-emerald-500/10 border border-slate-800/50 hover:scale-105 transition-transform duration-500 bg-slate-900">
+        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/10 border border-slate-800/50 hover:scale-105 transition-transform duration-500 bg-slate-900">
           <img 
             src="/api/attachments/a7122851-4034-4531-9025-667793656783" 
             alt="RTFT" 
@@ -107,7 +108,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
             className={cn(
               "w-12 h-12 flex items-center justify-center rounded-2xl transition-all group relative",
               currentView === item.id 
-                ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20" 
+                ? "bg-blue-500 text-white shadow-xl shadow-blue-500/20" 
                 : "text-slate-400 hover:text-white hover:bg-slate-900/50"
             )}
           >
@@ -119,7 +120,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
             </div>
 
             {currentView === item.id && (
-              <div className="absolute -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+              <div className="absolute -right-1 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
             )}
           </button>
         ))}
@@ -138,14 +139,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
         >
           <div className="relative">
             <img 
-              src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}&background=10b981&color=fff`} 
+              src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}&background=3b82f6&color=fff`} 
               alt={user?.displayName || ''} 
               className="w-10 h-10 rounded-xl border border-slate-800 object-cover shadow-inner group-hover:scale-105 transition-transform duration-500"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse" />
+            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-slate-950 rounded-full animate-pulse" />
           </div>
-          <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest group-hover:text-emerald-400 transition-colors truncate max-w-[64px] text-center">
+          <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest group-hover:text-blue-400 transition-colors truncate max-w-[64px] text-center">
             {user?.displayName || 'User'}
           </span>
         </div>
@@ -170,7 +171,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center">
             <div className="w-4 h-4 bg-white rounded-sm rotate-45" />
           </div>
           <span className="font-black tracking-tighter text-xl font-display text-white">FUTURES</span>
@@ -225,7 +226,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
                   type="text"
                   value={profileData.displayName}
                   onChange={e => setProfileData({ ...profileData, displayName: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-white"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-white"
                   placeholder="Enter username"
                 />
               </div>
@@ -246,11 +247,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
                   tabIndex={0}
                   className="relative group cursor-pointer outline-none"
                 >
-                  <div className="w-full h-40 bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-3 hover:border-emerald-500/50 transition-all overflow-hidden focus:border-emerald-500/50">
+                  <div className="w-full h-40 bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-3 hover:border-blue-500/50 transition-all overflow-hidden focus:border-blue-500/50">
                     {profileData.photoURL ? (
                       <img src={profileData.photoURL} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
                     ) : (
-                      <Upload size={32} className="text-zinc-600 group-hover:text-emerald-500 transition-colors" />
+                      <Upload size={32} className="text-zinc-600 group-hover:text-blue-500 transition-colors" />
                     )}
                     <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2">
                       <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">
@@ -278,7 +279,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 h-14 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center"
+                  className="flex-1 h-14 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center"
                   title="Save Profile"
                 >
                   <Check size={24} />

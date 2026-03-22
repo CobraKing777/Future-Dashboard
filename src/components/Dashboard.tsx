@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, db } from '../firebase';
 import { Account, Trade } from '../types';
 import { formatCurrency, checkConsistencyRule, calculateTrailingDrawdown } from '../utils';
-import { TrendingUp, TrendingDown, Target, Activity, CheckCircle2, XCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, ShieldCheck, Sword, Skull } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { TrendingUp, TrendingDown, Target, Activity, CheckCircle2, XCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, ShieldCheck, Sword, Skull, Info } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 import { useAuth } from '../contexts/AuthContext';
+
+import { InfoTooltip } from './InfoTooltip';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -54,6 +56,12 @@ export const Dashboard: React.FC = () => {
   };
 
   const totalPnL = accountTrades.reduce((sum, t) => sum + t.pnl, 0);
+  
+  const today = new Date().toDateString();
+  const todayPnL = accountTrades
+    .filter(t => new Date(t.date).toDateString() === today)
+    .reduce((sum, t) => sum + t.pnl, 0);
+
   const winRate = accountTrades.length > 0 
     ? (accountTrades.filter(t => t.pnl > 0).length / accountTrades.length) * 100 
     : 0;
@@ -107,14 +115,14 @@ export const Dashboard: React.FC = () => {
       days.push(
         <div key={`day-${year}-${month}-${day}`} className={cn(
           "aspect-square sm:h-24 bg-slate-950/50 border border-slate-800 rounded-lg sm:rounded-2xl p-1 sm:p-3 flex flex-col justify-between relative group hover:border-slate-600 transition-all duration-300",
-          pnl !== undefined && pnl >= 0 && "bg-emerald-500/5 border-emerald-500/20",
-          pnl !== undefined && pnl < 0 && "bg-red-500/5 border-red-500/20"
+          pnl !== undefined && pnl >= 0 && "bg-bull/5 border-bull/20",
+          pnl !== undefined && pnl < 0 && "bg-bear/20 border-bear/40"
         )}>
           <span className="text-[8px] sm:text-[10px] text-slate-500 font-black uppercase tracking-widest">{day}</span>
           {pnl !== undefined && (
             <div className={cn(
               "text-[6px] sm:text-[10px] font-black font-display text-center py-0.5 sm:py-1.5 rounded-md sm:rounded-xl shadow-sm leading-none sm:leading-normal",
-              pnl >= 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'
+              pnl >= 0 ? 'text-bull bg-bull/10' : 'text-white bg-bear border border-zinc-800'
             )}>
               {pnl >= 0 ? '+' : ''}{formatCurrency(pnl).replace('.00', '')}
             </div>
@@ -127,10 +135,44 @@ export const Dashboard: React.FC = () => {
   };
 
   const metrics = [
-    { label: 'Account Balance', value: formatCurrency(selectedAccount?.currentBalance || 0), icon: Wallet },
-    { label: 'Total P/L', value: formatCurrency(totalPnL), icon: totalPnL >= 0 ? TrendingUp : TrendingDown, color: totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400' },
-    { label: 'Win Rate', value: `${winRate.toFixed(1)}%`, icon: Target },
-    { label: 'Profit Factor', value: profitFactor.toFixed(2), icon: Activity },
+    { 
+      label: 'Initial Balance', 
+      value: formatCurrency(selectedAccount?.initialBalance || 0), 
+      icon: Wallet,
+      tooltip: { content: 'The starting balance of the account when it was created.', formula: 'Size * 1000' }
+    },
+    { 
+      label: 'Current Account Balance', 
+      value: formatCurrency(selectedAccount?.currentBalance || 0), 
+      icon: Wallet,
+      tooltip: { content: 'Your current account equity including closed trades.', formula: 'Initial Balance + Sum(All Trades PnL)' }
+    },
+    { 
+      label: 'Today PnL', 
+      value: formatCurrency(todayPnL), 
+      icon: todayPnL >= 0 ? TrendingUp : TrendingDown, 
+      color: todayPnL >= 0 ? 'text-bull' : 'text-white bg-bear px-2 py-1 rounded-lg border border-zinc-800',
+      tooltip: { content: 'Total profit or loss for today\'s trades.', formula: 'Sum(PnL of all trades executed today)' }
+    },
+    { 
+      label: 'Total P/L', 
+      value: formatCurrency(totalPnL), 
+      icon: totalPnL >= 0 ? TrendingUp : TrendingDown, 
+      color: totalPnL >= 0 ? 'text-bull' : 'text-white bg-bear px-2 py-1 rounded-lg border border-zinc-800',
+      tooltip: { content: 'The total profit or loss logged in this account.', formula: 'Sum(PnL of all trades logged in this account)' }
+    },
+    { 
+      label: 'Win Rate', 
+      value: `${winRate.toFixed(1)}%`, 
+      icon: Target,
+      tooltip: { content: 'Percentage of trades that were profitable.', formula: '(Winning Trades / Total Trades) * 100' }
+    },
+    { 
+      label: 'Profit Factor', 
+      value: profitFactor.toFixed(2), 
+      icon: Activity,
+      tooltip: { content: 'Ratio of gross profit to gross loss.', formula: 'Sum(Gross Profits) / Sum(Gross Losses)' }
+    },
   ];
 
   return (
@@ -162,11 +204,14 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {metrics.map((m, i) => (
           <div key={i} className="glass-card p-8 rounded-3xl space-y-6 hover-glow transition-all duration-500 group">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] group-hover:text-emerald-500/70 transition-colors">{m.label}</span>
+              <div className="flex items-center">
+                <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.25em] group-hover:text-emerald-500/70 transition-colors">{m.label}</span>
+                <InfoTooltip content={m.tooltip.content} formula={m.tooltip.formula} />
+              </div>
               <div className="w-12 h-12 rounded-2xl bg-slate-950/50 flex items-center justify-center border border-slate-800 group-hover:border-emerald-500/30 transition-all duration-500 group-hover:scale-110">
                 <m.icon size={22} className="text-slate-400 group-hover:text-emerald-400 transition-colors" />
               </div>
@@ -182,7 +227,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Equity Curve</h2>
             <div className="flex items-center gap-3 bg-slate-950/50 px-4 py-2 rounded-xl border border-slate-800">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-bull animate-pulse" />
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance ($)</span>
             </div>
           </div>
@@ -191,8 +236,8 @@ export const Dashboard: React.FC = () => {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} strokeOpacity={0.5} />
@@ -213,7 +258,7 @@ export const Dashboard: React.FC = () => {
                   tickFormatter={(v) => `$${v/1000}k`} 
                   tick={{ fontWeight: 800, letterSpacing: '0.05em' }}
                 />
-                <Tooltip 
+                <RechartsTooltip 
                   contentStyle={{ 
                     backgroundColor: 'rgba(15, 23, 42, 0.9)', 
                     backdropFilter: 'blur(8px)',
@@ -221,19 +266,19 @@ export const Dashboard: React.FC = () => {
                     borderRadius: '20px',
                     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
                   }}
-                  itemStyle={{ color: '#10b981', fontWeight: 800, fontSize: '14px' }}
+                  itemStyle={{ color: '#3b82f6', fontWeight: 800, fontSize: '14px' }}
                   labelStyle={{ color: '#94a3b8', marginBottom: '6px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}
-                  cursor={{ stroke: '#10b981', strokeWidth: 2, strokeDasharray: '5 5' }}
+                  cursor={{ stroke: '#3b82f6', strokeWidth: 2, strokeDasharray: '5 5' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="balance" 
-                  stroke="#10b981" 
+                  stroke="#3b82f6" 
                   fillOpacity={1} 
                   fill="url(#colorBalance)" 
                   strokeWidth={4} 
                   animationDuration={2000}
-                  activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -251,7 +296,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-500 group-hover:scale-110",
-                isConsistent ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                isConsistent ? "bg-bull/10 text-bull" : "bg-red-500/10 text-red-400"
               )}>
                 {isConsistent ? <CheckCircle2 size={24} /> : <XCircle size={24} />}
               </div>
@@ -264,7 +309,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                 <div 
-                  className="h-full bg-emerald-500 transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.6)]" 
+                  className="h-full bg-bull transition-all duration-1000 shadow-[0_0_15px_rgba(59,130,246,0.6)]" 
                   style={{ width: `${Math.min(100, (totalPnL / (selectedAccount?.profitTarget || 1)) * 100)}%` }}
                 />
               </div>

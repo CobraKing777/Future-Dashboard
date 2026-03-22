@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, db, setDoc, doc, serverTimestamp, addDoc, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
 import { Strategy } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Target, LogOut as ExitIcon, Brain, Save, CheckCircle2, AlertCircle, Info, TrendingUp, Shield, Activity, Plus, Trash2, Edit2, ChevronLeft } from 'lucide-react';
+import { Target, LogOut as ExitIcon, Brain, Save, CheckCircle2, AlertCircle, Info, TrendingUp, Shield, Activity, Plus, Trash2, Edit2, ChevronLeft, X, Check } from 'lucide-react';
 
 export const StrategyCenter: React.FC = () => {
   const { user } = useAuth();
@@ -134,10 +134,10 @@ export const StrategyCenter: React.FC = () => {
               setFormData(initialFormData);
               setIsEditing(true);
             }}
-            className="flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all shadow-xl active:scale-95 bg-white text-slate-950 hover:bg-slate-200"
+            className="w-12 h-12 flex items-center justify-center rounded-2xl font-bold transition-all shadow-xl active:scale-95 bg-white text-slate-950 hover:bg-slate-200"
+            title="New Strategy"
           >
-            <Plus size={20} />
-            New Strategy
+            <Plus size={24} />
           </button>
         </header>
 
@@ -191,9 +191,10 @@ export const StrategyCenter: React.FC = () => {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setIsEditing(false)}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-all"
+            className="w-12 h-12 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400 hover:text-white transition-all"
+            title="Cancel"
           >
-            <ChevronLeft size={20} />
+            <X size={24} />
           </button>
           <div className="space-y-1">
             <input 
@@ -209,22 +210,23 @@ export const StrategyCenter: React.FC = () => {
         <button
           onClick={handleSave}
           disabled={isSaving || !formData.name?.trim()}
-          className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all shadow-xl active:scale-95 ${
+          className={cn(
+            "w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all shadow-xl active:scale-95",
             saveStatus === 'success' ? 'bg-emerald-500 text-white' : 
             saveStatus === 'error' ? 'bg-red-500 text-white' : 
-            'bg-white text-slate-950 hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed'
-          }`}
+            'bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed'
+          )}
+          title={isSaving ? 'Saving...' : saveStatus === 'success' ? 'Saved' : saveStatus === 'error' ? 'Retry' : 'Save Strategy'}
         >
           {isSaving ? (
-            <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : saveStatus === 'success' ? (
-            <CheckCircle2 size={20} />
+            <CheckCircle2 size={24} />
           ) : saveStatus === 'error' ? (
-            <AlertCircle size={20} />
+            <AlertCircle size={24} />
           ) : (
-            <Save size={20} />
+            <Check size={24} />
           )}
-          {isSaving ? 'Saving...' : saveStatus === 'success' ? 'Saved' : saveStatus === 'error' ? 'Retry' : 'Save Strategy'}
         </button>
       </header>
 

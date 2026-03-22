@@ -72,6 +72,7 @@ async function startServer() {
       };
 
       const docRef = await addDoc(collection(db, 'accounts'), accountData);
+      console.log('Account created successfully with ID:', docRef.id);
 
       // 3. Success Response
       res.status(201).json({ 

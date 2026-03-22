@@ -23,29 +23,6 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 text-zinc-100 p-6">
-        <div className="max-w-md w-full space-y-8 text-center">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl font-mono">
-              FUTURES JOURNAL
-            </h1>
-            <p className="text-zinc-400">
-              Professional trade tracking and AI-powered performance analysis.
-            </p>
-          </div>
-          <button
-            onClick={login}
-            className="w-full py-3 px-4 bg-zinc-100 text-zinc-950 font-bold rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-          >
-            Login with Google
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const renderView = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard />;

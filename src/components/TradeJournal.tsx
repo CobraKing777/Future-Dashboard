@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, query, where, onSnapshot, db, Timestamp, doc, updateDoc, getDoc, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
+import { collection, addDoc, query, where, onSnapshot, db, Timestamp, doc, updateDoc, getDoc, getDocs, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
 import { Trade, Account, Strategy } from '../types';
 import { formatCurrency, calculatePnL, calculateRiskReward, cn } from '../utils';
-import { Plus, Calendar, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, ChevronUp, Image as ImageIcon, X, Target, LogOut as ExitIcon, Brain, Info, Shield, Activity, TrendingUp, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Calendar, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, ChevronUp, Image as ImageIcon, X, Target, LogOut as ExitIcon, Brain, Info, Shield, Activity, TrendingUp, Edit2, Trash2, Check } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,9 +16,32 @@ export const TradeJournal: React.FC = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [showStrategyRef, setShowStrategyRef] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [viewingTrade, setViewingTrade] = useState<Trade | null>(null);
   const [tradeToDelete, setTradeToDelete] = useState<Trade | null>(null);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+
+  const clearAllTrades = async () => {
+    if (!user) return;
+    if (!window.confirm('Are you sure you want to delete ALL trades? This action cannot be undone.')) return;
+    
+    setIsClearingAll(true);
+    try {
+      const q = query(collection(db, 'trades'), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
+      
+      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      alert('All trades cleared successfully.');
+    } catch (error) {
+      console.error('Error clearing trades:', error);
+      alert('Failed to clear trades.');
+    } finally {
+      setIsClearingAll(false);
+    }
+  };
   
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
   const isFailed = selectedAccount?.type === 'Failed';
@@ -316,6 +339,13 @@ export const TradeJournal: React.FC = () => {
           <p className="text-zinc-500">Record and analyze every execution.</p>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={clearAllTrades}
+            disabled={isClearingAll}
+            className="px-4 py-2 bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
+          >
+            {isClearingAll ? 'Clearing...' : 'Clear All Trades'}
+          </button>
           <select
             value={selectedAccountId || ''}
             onChange={(e) => setSelectedAccountId(e.target.value || null)}
@@ -330,15 +360,14 @@ export const TradeJournal: React.FC = () => {
             onClick={() => setShowForm(!showForm)}
             disabled={isNoAccountSelected || isFailed}
             className={cn(
-              "px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all",
+              "w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all",
               isNoAccountSelected || isFailed
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                : "bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
+                : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
             )}
-            title={isNoAccountSelected ? "Select an account to log a trade" : isFailed ? "Cannot log trades for a failed account" : ""}
+            title={isNoAccountSelected ? "Select an account to log a trade" : isFailed ? "Cannot log trades for a failed account" : "New Trade"}
           >
-            <Plus size={18} />
-            New Trade
+            <Plus size={20} />
           </button>
         </div>
       </header>
@@ -658,12 +687,14 @@ export const TradeJournal: React.FC = () => {
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest block">Entry Screenshot (Before)</label>
               <div 
                 className={cn(
-                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5",
+                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/5 outline-none focus:border-emerald-500/50",
                   formData.beforeImage ? "border-solid border-emerald-500/30" : ""
                 )}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => onDrop(e, 'beforeImage')}
                 onPaste={e => onPaste(e, 'beforeImage')}
+                onMouseEnter={e => e.currentTarget.focus()}
+                tabIndex={0}
               >
                 <div className="flex flex-col items-center justify-center py-4 space-y-2">
                   <ImageIcon size={32} className={cn("transition-colors", formData.beforeImage ? "text-emerald-500" : "text-zinc-600")} />
@@ -698,12 +729,14 @@ export const TradeJournal: React.FC = () => {
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest block">Exit Screenshot (After)</label>
               <div 
                 className={cn(
-                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-blue-500/50 hover:bg-blue-500/5",
+                  "relative group cursor-pointer border-2 border-dashed border-zinc-800 rounded-2xl p-4 transition-all hover:border-blue-500/50 hover:bg-blue-500/5 outline-none focus:border-blue-500/50",
                   formData.afterImage ? "border-solid border-blue-500/30" : ""
                 )}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => onDrop(e, 'afterImage')}
                 onPaste={e => onPaste(e, 'afterImage')}
+                onMouseEnter={e => e.currentTarget.focus()}
+                tabIndex={0}
               >
                 <div className="flex flex-col items-center justify-center py-4 space-y-2">
                   <ImageIcon size={32} className={cn("transition-colors", formData.afterImage ? "text-blue-500" : "text-zinc-600")} />
@@ -777,21 +810,23 @@ export const TradeJournal: React.FC = () => {
                   psychologyStatus: 'Calm',
                 });
               }}
-              className="px-6 py-3 text-zinc-400 font-medium hover:text-zinc-100 transition-all"
+              className="w-12 h-12 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all"
+              title="Cancel"
             >
-              Cancel
+              <X size={24} />
             </button>
             <button
               type="submit"
               disabled={isNoAccountSelected || isFailed}
               className={cn(
-                "px-8 py-3 rounded-xl font-bold transition-all",
+                "w-12 h-12 flex items-center justify-center rounded-xl font-bold transition-all",
                 isNoAccountSelected || isFailed
                   ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                  : "bg-zinc-100 text-zinc-950 hover:bg-zinc-200"
+                  : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
               )}
+              title={formData.id ? 'Update Trade' : 'Log Trade'}
             >
-              {formData.id ? 'Update Trade' : 'Log Trade'}
+              <Check size={24} />
             </button>
           </div>
 

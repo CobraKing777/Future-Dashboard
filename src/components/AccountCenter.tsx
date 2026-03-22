@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, db, deleteDoc, doc, handleFirestoreError, OperationType } from '../firebase';
+import { collection, query, where, onSnapshot, db, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, updateDoc } from '../firebase';
 import { Account } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, Trash2, Edit2, ShieldCheck, Sword, Skull } from 'lucide-react';
+import { Plus, Trash2, Edit2, ShieldCheck, Sword, Skull, Info, Check, X, AlertCircle } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
+
+import { InfoTooltip } from './InfoTooltip';
 
 export const AccountCenter: React.FC = () => {
   const { user } = useAuth();
@@ -76,27 +78,22 @@ export const AccountCenter: React.FC = () => {
     if (!user) return;
 
     try {
-      const url = editingId ? `/api/accounts/update/${editingId}` : '/api/accounts/add';
-      const method = editingId ? 'PUT' : 'POST';
+      const data = {
+        ...formData,
+        userId: user.uid,
+        initialBalance: formData.size * 1000, // Initial balance from size
+        currentBalance: editingId ? accounts.find(a => a.id === editingId)?.currentBalance : formData.size * 1000,
+        updatedAt: new Date(),
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          userId: user.uid,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${editingId ? 'update' : 'create'} account`);
+      if (editingId) {
+        await updateDoc(doc(db, 'accounts', editingId), data);
+      } else {
+        await addDoc(collection(db, 'accounts'), {
+          ...data,
+          createdAt: new Date(),
+        });
       }
-
-      const result = await response.json();
-      console.log(`Account ${editingId ? 'updated' : 'created'}:`, result);
 
       setShowForm(false);
       setEditingId(null);
@@ -161,10 +158,10 @@ export const AccountCenter: React.FC = () => {
         )}
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+          className="bg-blue-500 text-white w-12 h-12 rounded-xl font-bold flex items-center justify-center hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+          title="Add New Account"
         >
-          <Plus size={20} />
-          New Account
+          <Plus size={24} />
         </button>
       </header>
 
@@ -172,43 +169,55 @@ export const AccountCenter: React.FC = () => {
         <form onSubmit={handleSubmit} className="glass-card p-8 rounded-3xl space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Account Name</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Account Name
+                <InfoTooltip content="A unique identifier for this trading account." />
+              </label>
               <input
                 required
                 type="text"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white placeholder:text-slate-700"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white placeholder:text-slate-700"
                 placeholder="e.g. Apex 50k #1"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Prop Firm</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Prop Firm
+                <InfoTooltip content="The institution where your account is held." />
+              </label>
               <input
                 required
                 type="text"
                 value={formData.propFirm}
                 onChange={e => setFormData({ ...formData, propFirm: e.target.value })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white placeholder:text-slate-700"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white placeholder:text-slate-700"
                 placeholder="e.g. Apex, Topstep"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Account Size (k)</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Account Size (k)
+                <InfoTooltip content="The total funding amount provided by the prop firm." />
+              </label>
               <input
                 required
                 type="number"
                 value={formData.size}
                 onChange={e => setFormData({ ...formData, size: Number(e.target.value) })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Account Type</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Account Type
+                <InfoTooltip content="The current stage of your account." />
+              </label>
               <select
                 value={formData.type}
                 onChange={e => setFormData({ ...formData, type: e.target.value as any })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white appearance-none"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white appearance-none"
               >
                 <option value="Challenge">Challenge</option>
                 <option value="Funded">Funded</option>
@@ -216,34 +225,43 @@ export const AccountCenter: React.FC = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Profit Target ($)</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Profit Target ($)
+                <InfoTooltip content="The percentage gain required to pass the challenge." />
+              </label>
               <input
                 required
                 type="number"
                 value={formData.profitTarget}
                 onChange={e => setFormData({ ...formData, profitTarget: Number(e.target.value) })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Max Drawdown ($)</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Max Drawdown ($)
+                <InfoTooltip content="The maximum allowed loss before account failure." />
+              </label>
               <input
                 required
                 type="number"
                 value={formData.maxDrawdown}
                 onChange={e => setFormData({ ...formData, maxDrawdown: Number(e.target.value) })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">Consistency Rule (%)</label>
+              <label className="text-xs text-slate-500 uppercase font-bold tracking-widest ml-1">
+                Consistency Rule (%)
+                <InfoTooltip content="Specific rules regarding trade size or profit distribution." />
+              </label>
               <input
                 required
                 type="number"
                 step="0.01"
                 value={formData.consistencyRule}
                 onChange={e => setFormData({ ...formData, consistencyRule: Number(e.target.value) })}
-                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-white"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-white"
               />
             </div>
           </div>
@@ -259,7 +277,7 @@ export const AccountCenter: React.FC = () => {
                     step="0.01"
                     value={value}
                     onChange={e => handleCommissionChange(asset, Number(e.target.value))}
-                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/50 text-white"
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 text-white"
                   />
                 </div>
               ))}
@@ -273,15 +291,17 @@ export const AccountCenter: React.FC = () => {
                 setShowForm(false);
                 setEditingId(null);
               }}
-              className="px-8 py-4 text-slate-400 font-bold hover:text-white transition-all order-2 sm:order-1"
+              className="w-14 h-14 bg-zinc-800 text-slate-400 rounded-2xl font-bold hover:text-white transition-all order-2 sm:order-1 flex items-center justify-center shadow-lg"
+              title="Cancel"
             >
-              Cancel
+              <X size={24} />
             </button>
             <button
               type="submit"
-              className="bg-white text-slate-950 px-10 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all shadow-xl order-1 sm:order-2"
+              className="bg-blue-500 text-white w-14 h-14 rounded-2xl font-bold hover:bg-blue-400 transition-all shadow-xl shadow-blue-500/20 order-1 sm:order-2 flex items-center justify-center"
+              title={editingId ? 'Update Account' : 'Create Account'}
             >
-              {editingId ? 'Update Account' : 'Create Account'}
+              <Check size={24} />
             </button>
           </div>
         </form>
@@ -290,7 +310,7 @@ export const AccountCenter: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {accounts.map(acc => (
           <div key={acc.id} className={cn(
-            "glass-card p-8 rounded-3xl space-y-8 relative group transition-all duration-500 hover-glow hover:scale-[1.02] hover:border-emerald-500/40",
+            "glass-card p-8 rounded-3xl space-y-8 relative group transition-all duration-500 hover-glow hover:scale-[1.02] hover:border-blue-500/40",
             acc.type === 'Failed' ? "grayscale opacity-60" : ""
           )}>
             <div className="space-y-6">
@@ -309,7 +329,7 @@ export const AccountCenter: React.FC = () => {
                       {acc.type === 'Failed' ? 'Breached' : acc.type}
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold font-display text-white group-hover:text-emerald-400 transition-colors break-all leading-tight" title={acc.name}>
+                  <h3 className="text-2xl font-bold font-display text-white group-hover:text-blue-400 transition-colors break-all leading-tight" title={acc.name}>
                     {acc.name}
                   </h3>
                   <div className="flex items-center gap-2">
@@ -321,7 +341,7 @@ export const AccountCenter: React.FC = () => {
                 <div className="flex items-center bg-slate-950/50 rounded-xl p-1 border border-slate-800 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0 shrink-0">
                   <button
                     onClick={() => handleEdit(acc)}
-                    className="p-2 text-slate-500 hover:text-emerald-400 transition-colors"
+                    className="p-2 text-slate-500 hover:text-blue-400 transition-colors"
                     title="Edit Account"
                   >
                     <Edit2 size={16} />
@@ -340,7 +360,7 @@ export const AccountCenter: React.FC = () => {
             <div className="grid grid-cols-2 gap-8">
               <div className="space-y-2">
                 <p className="text-[10px] text-slate-500 uppercase font-black tracking-[0.15em]">Current Balance</p>
-                <p className="text-2xl font-bold font-mono text-white tracking-tight group-hover:text-emerald-400 transition-colors">{formatCurrency(acc.currentBalance)}</p>
+                <p className="text-2xl font-bold font-mono text-white tracking-tight group-hover:text-blue-400 transition-colors">{formatCurrency(acc.currentBalance)}</p>
               </div>
               <div className="space-y-2">
                 <p className="text-[10px] text-slate-500 uppercase font-black tracking-[0.15em]">Profit Target</p>
@@ -374,7 +394,7 @@ export const AccountCenter: React.FC = () => {
                 <div 
                   className={cn(
                     "h-full transition-all duration-1000",
-                    acc.type === 'Funded' ? "bg-emerald-500" : "bg-blue-500"
+                    acc.type === 'Funded' ? "bg-blue-500" : "bg-blue-500"
                   )}
                   style={{ width: `${Math.min(100, (acc.currentBalance / (acc.size * 1000 + acc.profitTarget)) * 100)}%` }}
                 />
@@ -390,8 +410,8 @@ export const AccountCenter: React.FC = () => {
           <p className="text-3xl font-bold font-display text-white">{counts.total}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-[10px] text-emerald-500/70 uppercase font-black tracking-widest">Funded</p>
-          <p className="text-3xl font-bold font-display text-emerald-400">{counts.funded}</p>
+          <p className="text-[10px] text-blue-500/70 uppercase font-black tracking-widest">Funded</p>
+          <p className="text-3xl font-bold font-display text-blue-400">{counts.funded}</p>
         </div>
         <div className="space-y-1">
           <p className="text-[10px] text-blue-500/70 uppercase font-black tracking-widest">Challenge</p>
@@ -413,14 +433,16 @@ export const AccountCenter: React.FC = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setAccountToDelete(null)}
-                className="flex-1 py-3 px-4 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition-all"
+                className="flex-1 py-3 px-4 bg-zinc-800 text-white font-bold rounded-xl hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
               >
+                <X size={20} />
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-400 transition-all shadow-lg shadow-red-500/20"
+                className="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-400 transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
               >
+                <Check size={20} />
                 Delete
               </button>
             </div>

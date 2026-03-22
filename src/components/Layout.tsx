@@ -83,10 +83,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       <div className="flex flex-col items-center px-2 mb-4">
         <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/10 border border-slate-800/50 hover:scale-105 transition-transform duration-500 bg-slate-900">
           <img 
-            src="./V2.jpeg"
+            src="/api/attachments/a7122851-4034-4531-9025-667793656783" 
             alt="RTFT" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/trading/200/200';
+            }}
           />
         </div>
         <div className="mt-2 text-center">

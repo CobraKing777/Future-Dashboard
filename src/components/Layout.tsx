@@ -87,9 +87,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
             alt="RTFT" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
-           /* onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://drive.google.com/uc?export=download&id=1mz85BOIBtvDuJQmvUCntV5XrgbVokcrg';
-            } */ }
           />
         </div>
         <div className="mt-2 text-center">

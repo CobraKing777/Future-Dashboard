@@ -17,6 +17,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const mapToSnakeCase = (obj: any) => {
   const snake: any = {};
   for (const key in obj) {
+    if (obj[key] === undefined) continue;
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     snake[snakeKey] = obj[key];
   }

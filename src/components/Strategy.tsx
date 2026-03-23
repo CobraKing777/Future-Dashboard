@@ -82,9 +82,11 @@ export const StrategyCenter: React.FC = () => {
         setIsEditing(false);
         setFormData(initialFormData);
       }, 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving strategy:', error);
       setSaveStatus('error');
+      // Show error message to user
+      alert(`Failed to save strategy: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }

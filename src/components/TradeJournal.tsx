@@ -247,7 +247,10 @@ export const TradeJournal: React.FC = () => {
         }
       }
 
+      console.log("Save successful!");
+      setNotification({ message: formData.id ? 'Trade updated successfully!' : 'Trade logged successfully!', type: 'success' });
       setShowForm(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setFormData({
         id: '',
         accountId: accounts[0]?.id || '',
@@ -771,8 +774,8 @@ export const TradeJournal: React.FC = () => {
                   />
                 </div>
                 {formData.beforeImage && (
-                  <div className="relative w-full max-w-[200px] aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto">
-                    <img src={formData.beforeImage} alt="Before" className="w-full h-full object-cover" />
+                  <div className="relative w-full max-w-[180px] h-32 rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto bg-zinc-950">
+                    <img src={formData.beforeImage} alt="Before" className="w-full h-full object-contain" />
                     <button 
                       type="button"
                       disabled={isSaving}
@@ -780,9 +783,9 @@ export const TradeJournal: React.FC = () => {
                         e.stopPropagation();
                         setFormData(prev => ({ ...prev, beforeImage: '' }));
                       }}
-                      className="absolute top-2 right-2 bg-red-500/80 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors z-10"
+                      className="absolute top-1 right-1 bg-red-500/80 text-white p-1 rounded-full hover:bg-red-500 transition-colors z-10"
                     >
-                      <X size={14} />
+                      <X size={12} />
                     </button>
                   </div>
                 )}
@@ -814,8 +817,8 @@ export const TradeJournal: React.FC = () => {
                   />
                 </div>
                 {formData.afterImage && (
-                  <div className="relative w-full max-w-[200px] aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto">
-                    <img src={formData.afterImage} alt="After" className="w-full h-full object-cover" />
+                  <div className="relative w-full max-w-[180px] h-32 rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto bg-zinc-950">
+                    <img src={formData.afterImage} alt="After" className="w-full h-full object-contain" />
                     <button 
                       type="button"
                       disabled={isSaving}
@@ -823,9 +826,9 @@ export const TradeJournal: React.FC = () => {
                         e.stopPropagation();
                         setFormData(prev => ({ ...prev, afterImage: '' }));
                       }}
-                      className="absolute top-2 right-2 bg-red-500/80 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors z-10"
+                      className="absolute top-1 right-1 bg-red-500/80 text-white p-1 rounded-full hover:bg-red-500 transition-colors z-10"
                     >
-                      <X size={14} />
+                      <X size={12} />
                     </button>
                   </div>
                 )}

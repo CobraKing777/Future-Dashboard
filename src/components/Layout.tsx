@@ -132,16 +132,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
                 : "text-slate-400 hover:text-white hover:bg-slate-900/50"
             )}
           >
-            <item.icon size={20} strokeWidth={currentView === item.id ? 2.5 : 2} className="transition-transform duration-300 group-hover:scale-110" />
+            {currentView === item.id && (
+              <item.icon size={20} strokeWidth={2.5} className="transition-transform duration-300 group-hover:scale-110" />
+            )}
+            {currentView !== item.id && (
+              <item.icon size={20} strokeWidth={2} className="transition-transform duration-300 group-hover:scale-110" />
+            )}
             
             <div className="absolute left-full ml-4 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-[100] whitespace-nowrap translate-x-[-10px] group-hover:translate-x-0 shadow-2xl">
               {item.label}
               <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-900 border-l border-b border-zinc-800 rotate-45" />
             </div>
-
-            {currentView === item.id && (
-              <div className="absolute -right-1 w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-            )}
           </button>
         ))}
       </nav>

@@ -58,19 +58,29 @@ export const db = {
       };
     },
     async add(account: any) {
+      console.log("Adding account to Supabase:", account);
       const { data, error } = await supabase
         .from('accounts')
         .insert([mapToSnakeCase(account)])
         .select();
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error adding account:", error);
+        throw error;
+      }
+      console.log("Successfully added account:", data[0]);
       return mapToCamelCase(data[0]);
     },
     async update(id: string, updates: any) {
+      console.log(`Updating account ${id} in Supabase:`, updates);
       const { error } = await supabase
         .from('accounts')
         .update(mapToSnakeCase(updates))
         .eq('id', id);
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error updating account:", error);
+        throw error;
+      }
+      console.log("Successfully updated account:", id);
     },
     async delete(id: string) {
       const { error } = await supabase
@@ -121,19 +131,29 @@ export const db = {
       };
     },
     async add(trade: any) {
+      console.log("Adding trade to Supabase:", trade);
       const { data, error } = await supabase
         .from('trades')
         .insert([mapToSnakeCase(trade)])
         .select();
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error adding trade:", error);
+        throw error;
+      }
+      console.log("Successfully added trade:", data[0]);
       return mapToCamelCase(data[0]);
     },
     async update(id: string, updates: any) {
+      console.log(`Updating trade ${id} in Supabase:`, updates);
       const { error } = await supabase
         .from('trades')
         .update(mapToSnakeCase(updates))
         .eq('id', id);
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error updating trade:", error);
+        throw error;
+      }
+      console.log("Successfully updated trade:", id);
     },
     async delete(id: string) {
       const { error } = await supabase
@@ -182,19 +202,29 @@ export const db = {
       };
     },
     async add(strategy: any) {
+      console.log("Adding strategy to Supabase:", strategy);
       const { data, error } = await supabase
         .from('strategies')
         .insert([mapToSnakeCase(strategy)])
         .select();
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error adding strategy:", error);
+        throw error;
+      }
+      console.log("Successfully added strategy:", data[0]);
       return mapToCamelCase(data[0]);
     },
     async update(id: string, updates: any) {
+      console.log(`Updating strategy ${id} in Supabase:`, updates);
       const { error } = await supabase
         .from('strategies')
         .update(mapToSnakeCase(updates))
         .eq('id', id);
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error updating strategy:", error);
+        throw error;
+      }
+      console.log("Successfully updated strategy:", id);
     },
     async delete(id: string) {
       const { error } = await supabase

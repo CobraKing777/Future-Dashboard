@@ -90,9 +90,13 @@ export const AccountCenter: React.FC = () => {
     setShowForm(true);
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setIsSubmitting(true);
+    setError(null);
 
     try {
       const data = {
@@ -131,6 +135,8 @@ export const AccountCenter: React.FC = () => {
     } catch (error: any) {
       console.error(`Error ${editingId ? 'updating' : 'adding'} account:`, error);
       setError(error.message || `An error occurred while ${editingId ? 'updating' : 'creating'} the account.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -313,10 +319,18 @@ export const AccountCenter: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="bg-blue-500 text-white w-14 h-14 rounded-2xl font-bold hover:bg-blue-400 transition-all shadow-xl shadow-blue-500/20 order-1 sm:order-2 flex items-center justify-center"
+              disabled={isSubmitting}
+              className={cn(
+                "bg-blue-500 text-white w-14 h-14 rounded-2xl font-bold hover:bg-blue-400 transition-all shadow-xl shadow-blue-500/20 order-1 sm:order-2 flex items-center justify-center",
+                isSubmitting && "opacity-50 cursor-not-allowed"
+              )}
               title={editingId ? 'Update Account' : 'Create Account'}
             >
-              <Check size={24} />
+              {isSubmitting ? (
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Check size={24} />
+              )}
             </button>
           </div>
         </form>

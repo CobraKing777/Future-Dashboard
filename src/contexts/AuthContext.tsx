@@ -52,13 +52,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-    if (error) throw error;
+    try {
+      const redirectUrl = window.location.origin;
+      console.log("Attempting login with redirect to:", redirectUrl);
+      
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error("Login error:", err);
+      alert("Login failed: " + (err.message || "Please check your Supabase URL Configuration."));
+    }
   };
 
   const logout = async () => {

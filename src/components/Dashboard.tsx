@@ -47,6 +47,12 @@ export const Dashboard: React.FC = () => {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id!);
+    }
+  }, [accounts, selectedAccountId]);
+
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
   const accountTrades = trades.filter(t => t.accountId === selectedAccountId);
 

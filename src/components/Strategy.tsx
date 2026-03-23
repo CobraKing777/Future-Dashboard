@@ -173,7 +173,7 @@ export const StrategyCenter: React.FC = () => {
               </div>
               <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center">
                 <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">
-                  Updated {strat.updatedAt?.toDate().toLocaleDateString()}
+                  Updated {strat.updatedAt ? new Date(strat.updatedAt).toLocaleDateString() : 'Never'}
                 </span>
                 <Edit2 size={14} className="text-slate-600 group-hover:text-blue-400 transition-colors" />
               </div>

@@ -3,7 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tsdiykjpdjmkaqrgykqb.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_D6b8Y-HfKV0Fce2i8DjU7A_FMLmBWfQ';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'sb-tsdiykjpdjmkaqrgykqb-auth-token',
+    storage: window.localStorage
+  }
+});
 
 // Helper for database operations to maintain similar interface to what was used with Firebase
 const mapToSnakeCase = (obj: any) => {

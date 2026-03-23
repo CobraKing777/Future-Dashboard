@@ -48,7 +48,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Handle cross-tab session syncing (e.g. from login popup)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.includes('auth-token')) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          setUser(session?.user ?? null);
+        });
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const login = async () => {

@@ -66,14 +66,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async () => {
     try {
+      const isIframe = window.self !== window.top;
       const redirectUrl = window.location.origin;
-      console.log("Attempting login with redirect to:", redirectUrl);
+      
+      console.log("Attempting login. In Iframe:", isIframe);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
+          // Only use popup/new tab if we are stuck in an iframe
+          skipBrowserRedirect: isIframe,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -83,8 +86,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      if (data?.url) {
-        // Open in a new window to avoid iframe restrictions
+      // Only manually open a window if we are in an iframe
+      if (isIframe && data?.url) {
         window.open(data.url, '_blank');
       }
     } catch (err: any) {

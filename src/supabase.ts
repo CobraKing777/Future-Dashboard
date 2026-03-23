@@ -80,9 +80,10 @@ export const db = {
     },
     async update(id: string, updates: any) {
       console.log(`Updating account ${id} in Supabase:`, updates);
+      const { id: _id, ...rest } = updates;
       const { error } = await supabase
         .from('accounts')
-        .update(mapToSnakeCase(updates))
+        .update(mapToSnakeCase(rest))
         .eq('id', id);
       if (error) {
         console.error("Supabase error updating account:", error);
@@ -153,9 +154,10 @@ export const db = {
     },
     async update(id: string, updates: any) {
       console.log(`Updating trade ${id} in Supabase:`, updates);
+      const { id: _id, ...rest } = updates;
       const { error } = await supabase
         .from('trades')
-        .update(mapToSnakeCase(updates))
+        .update(mapToSnakeCase(rest))
         .eq('id', id);
       if (error) {
         console.error("Supabase error updating trade:", error);
@@ -224,9 +226,10 @@ export const db = {
     },
     async update(id: string, updates: any) {
       console.log(`Updating strategy ${id} in Supabase:`, updates);
+      const { id: _id, ...rest } = updates;
       const { error } = await supabase
         .from('strategies')
-        .update(mapToSnakeCase(updates))
+        .update(mapToSnakeCase(rest))
         .eq('id', id);
       if (error) {
         console.error("Supabase error updating strategy:", error);

@@ -18,6 +18,7 @@ export const TradeJournal: React.FC = () => {
   const [showStrategyRef, setShowStrategyRef] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [viewingTrade, setViewingTrade] = useState<Trade | null>(null);
   const [tradeToDelete, setTradeToDelete] = useState<Trade | null>(null);
@@ -176,8 +177,11 @@ export const TradeJournal: React.FC = () => {
     const totalCommission = commissionPerContract * totalClosedContracts;
     const rr = calculateRiskReward(formData.direction, formData.entryPrice, formData.stopLoss, formData.takeProfit);
 
+    setIsSaving(true);
     try {
+      console.log("Starting save process...");
       if (formData.id) {
+        console.log("Updating trade...");
         // Update existing trade
         const oldTrade = trades.find(t => t.id === formData.id);
 
@@ -219,6 +223,7 @@ export const TradeJournal: React.FC = () => {
           date: formData.date.toISOString(),
         });
       } else {
+        console.log("Adding new trade...");
         // Add new trade
         await db.trades.add({
           ...formData,
@@ -229,6 +234,7 @@ export const TradeJournal: React.FC = () => {
           date: formData.date.toISOString(),
         });
 
+        console.log("Updating account balance...");
         // Update account balance
         const account = accounts.find(a => a.id === formData.accountId);
         if (account) {
@@ -264,7 +270,9 @@ export const TradeJournal: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Error saving trade:', error);
-      alert(`Failed to save trade: ${error.message || 'Unknown error'}`);
+      alert(`Failed to save trade: ${error.message || JSON.stringify(error)}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -763,10 +771,11 @@ export const TradeJournal: React.FC = () => {
                   />
                 </div>
                 {formData.beforeImage && (
-                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2">
+                  <div className="relative w-full max-w-[200px] aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto">
                     <img src={formData.beforeImage} alt="Before" className="w-full h-full object-cover" />
                     <button 
                       type="button"
+                      disabled={isSaving}
                       onClick={(e) => {
                         e.stopPropagation();
                         setFormData(prev => ({ ...prev, beforeImage: '' }));
@@ -805,10 +814,11 @@ export const TradeJournal: React.FC = () => {
                   />
                 </div>
                 {formData.afterImage && (
-                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2">
+                  <div className="relative w-full max-w-[200px] aspect-video rounded-xl overflow-hidden border border-zinc-800 mt-2 mx-auto">
                     <img src={formData.afterImage} alt="After" className="w-full h-full object-cover" />
                     <button 
                       type="button"
+                      disabled={isSaving}
                       onClick={(e) => {
                         e.stopPropagation();
                         setFormData(prev => ({ ...prev, afterImage: '' }));
@@ -895,23 +905,28 @@ export const TradeJournal: React.FC = () => {
                     psychologyStatus: 'Calm',
                   });
                 }}
-                className="flex-1 sm:flex-none w-14 h-14 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all"
+                disabled={isSaving}
+                className="flex-1 sm:flex-none w-14 h-14 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all disabled:opacity-50"
                 title="Cancel"
               >
                 <X size={24} />
               </button>
               <button
                 type="submit"
-                disabled={isNoAccountSelected || isFailed}
+                disabled={isNoAccountSelected || isFailed || isSaving}
                 className={cn(
                   "flex-1 sm:flex-none w-14 h-14 flex items-center justify-center rounded-xl font-bold transition-all",
-                  isNoAccountSelected || isFailed
+                  isNoAccountSelected || isFailed || isSaving
                     ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                     : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
                 )}
                 title={formData.id ? 'Update Trade' : 'Log Trade'}
               >
-                <Check size={24} />
+                {isSaving ? (
+                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Check size={24} />
+                )}
               </button>
             </div>
           </div>

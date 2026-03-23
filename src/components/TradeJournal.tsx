@@ -156,6 +156,11 @@ export const TradeJournal: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
+    if (!formData.accountId) {
+      setNotification({ message: 'Please select an account for this trade.', type: 'error' });
+      return;
+    }
+
     const account = accounts.find(a => a.id === formData.accountId);
     const commissionPerContract = account?.commissions?.[formData.asset] || 0;
 
@@ -354,7 +359,16 @@ export const TradeJournal: React.FC = () => {
             ))}
           </select>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (!showForm) {
+                setFormData(prev => ({
+                  ...prev,
+                  accountId: selectedAccountId || accounts[0]?.id || '',
+                  strategyId: strategies[0]?.id || ''
+                }));
+              }
+              setShowForm(!showForm);
+            }}
             disabled={isNoAccountSelected || isFailed}
             className={cn(
               "w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all shrink-0",

@@ -16,7 +16,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const mapToSnakeCase = (obj: any) => {
   const snake: any = {};
   for (const key in obj) {
+    // Skip undefined and empty strings for ID-like fields
     if (obj[key] === undefined) continue;
+    if (['id', 'accountId', 'strategyId', 'userId', 'tradeId'].includes(key) && obj[key] === '') continue;
+    
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     snake[snakeKey] = obj[key];
   }
@@ -67,9 +70,10 @@ export const db = {
     },
     async add(account: any) {
       console.log("Adding account to Supabase:", account);
+      const { id, ...rest } = account;
       const { data, error } = await supabase
         .from('accounts')
-        .insert([mapToSnakeCase(account)])
+        .insert([mapToSnakeCase(rest)])
         .select();
       if (error) {
         console.error("Supabase error adding account:", error);
@@ -141,9 +145,10 @@ export const db = {
     },
     async add(trade: any) {
       console.log("Adding trade to Supabase:", trade);
+      const { id, ...rest } = trade;
       const { data, error } = await supabase
         .from('trades')
-        .insert([mapToSnakeCase(trade)])
+        .insert([mapToSnakeCase(rest)])
         .select();
       if (error) {
         console.error("Supabase error adding trade:", error);
@@ -213,9 +218,10 @@ export const db = {
     },
     async add(strategy: any) {
       console.log("Adding strategy to Supabase:", strategy);
+      const { id, ...rest } = strategy;
       const { data, error } = await supabase
         .from('strategies')
-        .insert([mapToSnakeCase(strategy)])
+        .insert([mapToSnakeCase(rest)])
         .select();
       if (error) {
         console.error("Supabase error adding strategy:", error);

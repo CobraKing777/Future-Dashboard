@@ -262,8 +262,9 @@ export const TradeJournal: React.FC = () => {
         exitLogicFollowed: true,
         psychologyStatus: 'Calm',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving trade:', error);
+      alert(`Failed to save trade: ${error.message || 'Unknown error'}`);
     }
   };
 

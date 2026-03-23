@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, query, where, onSnapshot, db, Timestamp, doc, updateDoc, getDoc, getDocs, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../supabase';
 import { Trade, Account, Strategy, TradeExit } from '../types';
 import { formatCurrency, calculatePnL, calculateExitPnL, calculateRiskReward, cn } from '../utils';
 import { InfoTooltip } from './InfoTooltip';
@@ -38,12 +38,7 @@ export const TradeJournal: React.FC = () => {
     setIsClearingAll(true);
     setShowClearConfirm(false);
     try {
-      const q = query(collection(db, 'trades'), where('userId', '==', user.uid));
-      const snapshot = await getDocs(q);
-      
-      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-      
+      await db.trades.clear(user.id);
       setNotification({ message: 'All trades cleared successfully.', type: 'success' });
     } catch (error) {
       console.error('Error clearing trades:', error);
@@ -56,6 +51,45 @@ export const TradeJournal: React.FC = () => {
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
   const isFailed = selectedAccount?.type === 'Failed';
   const isNoAccountSelected = !selectedAccountId;
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Initial load
+    db.accounts.list(user.id).then(accs => {
+      setAccounts(accs);
+      if (accs.length > 0 && !selectedAccountId) {
+        setSelectedAccountId(accs[0].id!);
+      }
+    });
+    db.trades.list(user.id).then(setTrades);
+    db.strategies.list(user.id).then(setStrategies);
+
+    // Subscriptions
+    const unsubAccounts = db.accounts.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setAccounts(prev => [...prev, payload.new as Account]);
+      if (payload.eventType === 'UPDATE') setAccounts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Account : a));
+      if (payload.eventType === 'DELETE') setAccounts(prev => prev.filter(a => a.id !== payload.old.id));
+    });
+
+    const unsubTrades = db.trades.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setTrades(prev => [...prev, payload.new as Trade]);
+      if (payload.eventType === 'UPDATE') setTrades(prev => prev.map(t => t.id === payload.new.id ? payload.new as Trade : t));
+      if (payload.eventType === 'DELETE') setTrades(prev => prev.filter(t => t.id !== payload.old.id));
+    });
+
+    const unsubStrategies = db.strategies.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setStrategies(prev => [...prev, payload.new as Strategy]);
+      if (payload.eventType === 'UPDATE') setStrategies(prev => prev.map(s => s.id === payload.new.id ? payload.new as Strategy : s));
+      if (payload.eventType === 'DELETE') setStrategies(prev => prev.filter(s => s.id !== payload.old.id));
+    });
+
+    return () => {
+      unsubAccounts();
+      unsubTrades();
+      unsubStrategies();
+    };
+  }, [user]);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -77,42 +111,7 @@ export const TradeJournal: React.FC = () => {
     fundamentalContext: '',
     exitLogicFollowed: true,
     psychologyStatus: 'Calm' as any,
-    mae: 0,
-    mfe: 0,
   });
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const qAccounts = query(collection(db, 'accounts'), where('userId', '==', user.uid));
-    const unsubscribeAccounts = onSnapshot(qAccounts, (snapshot) => {
-      const accs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
-      setAccounts(accs);
-      if (accs.length > 0 && !formData.accountId) {
-        setFormData(prev => ({ ...prev, accountId: accs[0].id! }));
-      }
-    });
-
-    const qTrades = query(collection(db, 'trades'), where('userId', '==', user.uid));
-    const unsubscribeTrades = onSnapshot(qTrades, (snapshot) => {
-      setTrades(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trade)));
-    });
-
-    const qStrategy = query(collection(db, 'strategies'), where('userId', '==', user.uid));
-    const unsubscribeStrategy = onSnapshot(qStrategy, (snapshot) => {
-      const fetchedStrategies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Strategy));
-      setStrategies(fetchedStrategies);
-      if (fetchedStrategies.length > 0 && !formData.strategyId) {
-        setFormData(prev => ({ ...prev, strategyId: fetchedStrategies[0].id! }));
-      }
-    });
-
-    return () => {
-      unsubscribeAccounts();
-      unsubscribeTrades();
-      unsubscribeStrategy();
-    };
-  }, [user]);
 
   // Auto-calculate direction and risk/reward
   useEffect(() => {
@@ -175,71 +174,62 @@ export const TradeJournal: React.FC = () => {
     try {
       if (formData.id) {
         // Update existing trade
-        const tradeRef = doc(db, 'trades', formData.id);
         const oldTrade = trades.find(t => t.id === formData.id);
 
         if (oldTrade) {
           // Revert old balance
-          const oldAccountRef = doc(db, 'accounts', oldTrade.accountId);
-          const oldAccountSnap = await getDoc(oldAccountRef);
-          if (oldAccountSnap.exists()) {
-            const oldAccountData = oldAccountSnap.data() as Account;
-            const revertedBalance = oldAccountData.currentBalance - oldTrade.pnl;
+          const oldAccount = accounts.find(a => a.id === oldTrade.accountId);
+          if (oldAccount) {
+            const revertedBalance = oldAccount.currentBalance - oldTrade.pnl;
             
             if (oldTrade.accountId === formData.accountId) {
               // Same account
               const newBalance = revertedBalance + pnl;
-              await updateDoc(oldAccountRef, {
+              await db.accounts.update(oldTrade.accountId, {
                 currentBalance: newBalance,
-                maxBalance: Math.max(oldAccountData.maxBalance || 0, newBalance)
+                maxBalance: Math.max(oldAccount.maxBalance || 0, newBalance)
               });
             } else {
               // Different account
-              await updateDoc(oldAccountRef, { currentBalance: revertedBalance });
+              await db.accounts.update(oldTrade.accountId, { currentBalance: revertedBalance });
               
-              const newAccountRef = doc(db, 'accounts', formData.accountId);
-              const newAccountSnap = await getDoc(newAccountRef);
-              if (newAccountSnap.exists()) {
-                const newAccountData = newAccountSnap.data() as Account;
-                const newBalance = newAccountData.currentBalance + pnl;
-                await updateDoc(newAccountRef, {
+              const newAccount = accounts.find(a => a.id === formData.accountId);
+              if (newAccount) {
+                const newBalance = newAccount.currentBalance + pnl;
+                await db.accounts.update(formData.accountId, {
                   currentBalance: newBalance,
-                  maxBalance: Math.max(newAccountData.maxBalance || 0, newBalance)
+                  maxBalance: Math.max(newAccount.maxBalance || 0, newBalance)
                 });
               }
             }
           }
         }
 
-        await updateDoc(tradeRef, {
+        await db.trades.update(formData.id, {
           ...formData,
           pnl,
           commission: totalCommission,
           riskReward: rr,
-          userId: user.uid,
+          userId: user.id,
           date: formData.date.toISOString(),
-          updatedAt: Timestamp.now(),
         });
       } else {
         // Add new trade
-        await addDoc(collection(db, 'trades'), {
+        await db.trades.add({
           ...formData,
           pnl,
           commission: totalCommission,
           riskReward: rr,
-          userId: user.uid,
+          userId: user.id,
           date: formData.date.toISOString(),
-          createdAt: Timestamp.now(),
         });
 
         // Update account balance
-        const accountRef = doc(db, 'accounts', formData.accountId);
-        const accountSnap = await getDoc(accountRef);
-        if (accountSnap.exists()) {
-          const accountData = accountSnap.data() as Account;
-          const newBalance = accountData.currentBalance + pnl;
-          const newMaxBalance = Math.max(accountData.maxBalance || 0, newBalance);
-          await updateDoc(accountRef, {
+        const account = accounts.find(a => a.id === formData.accountId);
+        if (account) {
+          const newBalance = account.currentBalance + pnl;
+          const newMaxBalance = Math.max(account.maxBalance || 0, newBalance);
+          await db.accounts.update(formData.accountId, {
             currentBalance: newBalance,
             maxBalance: newMaxBalance,
           });
@@ -247,28 +237,26 @@ export const TradeJournal: React.FC = () => {
       }
 
       setShowForm(false);
-    setFormData({
-      id: '',
-      accountId: accounts[0]?.id || '',
-      strategyId: strategies[0]?.id || '',
-      asset: 'NQ',
-      direction: 'Long',
-      contractSize: 1,
-      entryPrice: 0,
-      stopLoss: 0,
-      takeProfit: 0,
-      exits: [],
-      date: new Date(),
-      beforeImage: '',
-      afterImage: '',
-      entryContext: '',
-      marketRegime: '',
-      fundamentalContext: '',
-      exitLogicFollowed: true,
-      psychologyStatus: 'Calm',
-      mae: 0,
-      mfe: 0,
-    });
+      setFormData({
+        id: '',
+        accountId: accounts[0]?.id || '',
+        strategyId: strategies[0]?.id || '',
+        asset: 'NQ',
+        direction: 'Long',
+        contractSize: 1,
+        entryPrice: 0,
+        stopLoss: 0,
+        takeProfit: 0,
+        exits: [],
+        date: new Date(),
+        beforeImage: '',
+        afterImage: '',
+        entryContext: '',
+        marketRegime: '',
+        fundamentalContext: '',
+        exitLogicFollowed: true,
+        psychologyStatus: 'Calm',
+      });
     } catch (error) {
       console.error('Error saving trade:', error);
     }
@@ -294,8 +282,6 @@ export const TradeJournal: React.FC = () => {
       fundamentalContext: trade.fundamentalContext || '',
       exitLogicFollowed: trade.exitLogicFollowed ?? true,
       psychologyStatus: trade.psychologyStatus || 'Calm',
-      mae: trade.mae || 0,
-      mfe: trade.mfe || 0,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -313,20 +299,19 @@ export const TradeJournal: React.FC = () => {
       if (!trade.id) {
         throw new Error('Trade ID is missing. Cannot delete.');
       }
-      const accountRef = doc(db, 'accounts', trade.accountId);
-      const accountSnap = await getDoc(accountRef);
-      if (accountSnap.exists()) {
-        const accountData = accountSnap.data() as Account;
-        const newBalance = accountData.currentBalance - trade.pnl;
-        await updateDoc(accountRef, {
+      
+      const account = accounts.find(a => a.id === trade.accountId);
+      if (account) {
+        const newBalance = account.currentBalance - trade.pnl;
+        await db.accounts.update(trade.accountId, {
           currentBalance: newBalance,
         });
       }
 
-      await deleteDoc(doc(db, 'trades', trade.id));
+      await db.trades.delete(trade.id);
       setTradeToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `trades/${trade.id || 'unknown'}`);
+      console.error('Error deleting trade:', error);
     }
   };
 
@@ -413,8 +398,6 @@ export const TradeJournal: React.FC = () => {
                     fundamentalContext: '',
                     exitLogicFollowed: true,
                     psychologyStatus: 'Calm',
-                    mae: 0,
-                    mfe: 0,
                   });
                   setShowForm(false);
                 }}
@@ -616,44 +599,6 @@ export const TradeJournal: React.FC = () => {
                   <p className="text-xs text-zinc-600 font-bold uppercase tracking-widest">No exits added yet. Add at least one to complete the trade.</p>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Performance Metrics Section */}
-          <div className="pt-6 border-t border-zinc-800 space-y-6">
-            <div className="flex items-center gap-2">
-              <Activity size={16} className="text-blue-500" />
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-blue-500">Performance Metrics</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Drawdown (MAE)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.mae}
-                    onChange={e => setFormData({ ...formData, mae: Number(e.target.value) })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                    placeholder="Maximum Adverse Excursion"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-zinc-600 font-bold uppercase">USD</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Runup (MFE)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.mfe}
-                    onChange={e => setFormData({ ...formData, mfe: Number(e.target.value) })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                    placeholder="Maximum Favorable Excursion"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-zinc-600 font-bold uppercase">USD</span>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -869,8 +814,8 @@ export const TradeJournal: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.mae}
-                  onChange={e => setFormData({ ...formData, mae: Number(e.target.value) })}
+                  // value={formData.mae}
+                  // onChange={e => setFormData({ ...formData, mae: Number(e.target.value) })}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
                 />
               </div>
@@ -879,8 +824,8 @@ export const TradeJournal: React.FC = () => {
                 <input
                   type="number"
                   step="0.01"
-                  value={formData.mfe}
-                  onChange={e => setFormData({ ...formData, mfe: Number(e.target.value) })}
+                  // value={formData.mfe}
+                  // onChange={e => setFormData({ ...formData, mfe: Number(e.target.value) })}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
                 />
               </div>
@@ -933,8 +878,6 @@ export const TradeJournal: React.FC = () => {
                     fundamentalContext: '',
                     exitLogicFollowed: true,
                     psychologyStatus: 'Calm',
-                    mae: 0,
-                    mfe: 0,
                   });
                 }}
                 className="flex-1 sm:flex-none w-14 h-14 flex items-center justify-center bg-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-700 hover:text-zinc-200 transition-all"
@@ -1075,11 +1018,11 @@ export const TradeJournal: React.FC = () => {
                           )}>
                             {formatCurrency(calculateExitPnL(trade.asset, trade.direction, trade.entryPrice, exit.price, exit.contracts))}
                           </td>
-                          <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
-                            {exitIdx === 0 ? (trade.mae ? `-${formatCurrency(trade.mae)}` : '-') : ''}
+                          <td className="px-6 py-4 text-sm text-red-400/70 font-mono text-center">
+                            -
                           </td>
-                          <td className="px-6 py-4 text-sm text-blue-400/70 font-mono">
-                            {exitIdx === 0 ? (trade.mfe ? formatCurrency(trade.mfe) : '-') : ''}
+                          <td className="px-6 py-4 text-sm text-blue-400/70 font-mono text-center">
+                            -
                           </td>
                           <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
                             {exitIdx === 0 ? `-${formatCurrency(trade.commission || 0)}` : ''}
@@ -1384,11 +1327,13 @@ export const TradeJournal: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-zinc-500 font-bold uppercase">Drawdown (MAE):</span>
-                      <span className="text-sm font-mono font-bold text-red-400">-{formatCurrency(viewingTrade.mae || 0)}</span>
+                      {/* <span className="text-sm font-mono font-bold text-red-400">-{formatCurrency(viewingTrade.mae || 0)}</span> */}
+                      <span className="text-sm font-mono font-bold text-red-400">-</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-zinc-500 font-bold uppercase">Runup (MFE):</span>
-                      <span className="text-sm font-mono font-bold text-blue-400">{formatCurrency(viewingTrade.mfe || 0)}</span>
+                      {/* <span className="text-sm font-mono font-bold text-blue-400">{formatCurrency(viewingTrade.mfe || 0)}</span> */}
+                      <span className="text-sm font-mono font-bold text-blue-400">-</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-zinc-500 font-bold uppercase">Risk:Reward:</span>

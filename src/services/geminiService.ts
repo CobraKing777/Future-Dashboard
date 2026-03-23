@@ -3,7 +3,7 @@ import { Trade, Account } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export const analyzePerformance = async (trades: Trade[], account: Account): Promise<string> => {
+export const analyzePerformance = async (trades: Trade[], account: Account, language: string = 'English'): Promise<string> => {
   if (trades.length === 0) return "No trades to analyze yet. Start journaling your trades to get AI insights!";
 
   const tradeSummary = trades.map(t => ({
@@ -30,7 +30,7 @@ export const analyzePerformance = async (trades: Trade[], account: Account): Pro
     Trade Data (Recent):
     ${JSON.stringify(tradeSummary.slice(-10), null, 2)}
     
-    Please provide:
+    Please provide the response in ${language} language:
     1. A summary of overall performance.
     2. Specific technical analysis (TA) patterns or mistakes identified.
     3. Psychological insights based on the notes and exit reasons (especially "Partial Closed" reasons).

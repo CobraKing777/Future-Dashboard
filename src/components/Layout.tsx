@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, BookOpen, Wallet, BrainCircuit, Target, LogOut, Menu, X, Upload, Check, AlertCircle, Library } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -18,12 +18,25 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
   const { user, logout, updateProfile, isUsernameUnique } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
+  const photoURL = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}&background=3b82f6&color=fff`;
+
   const [profileData, setProfileData] = useState({
-    displayName: user?.displayName || '',
-    photoURL: user?.photoURL || ''
+    displayName: displayName,
+    photoURL: photoURL
   });
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || '',
+        photoURL: user.user_metadata?.avatar_url || ''
+      });
+    }
+  }, [user]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,14 +47,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       return;
     }
 
-    const isUnique = await isUsernameUnique(profileData.displayName);
-    if (!isUnique) {
-      setProfileError('Username is already taken');
-      return;
+    // Only check uniqueness if the name changed
+    if (profileData.displayName !== displayName) {
+      const isUnique = await isUsernameUnique(profileData.displayName);
+      if (!isUnique) {
+        setProfileError('Username is already taken');
+        return;
+      }
     }
 
-    await updateProfile(profileData);
-    setIsProfileModalOpen(false);
+    try {
+      await updateProfile(profileData);
+      setIsProfileModalOpen(false);
+    } catch (error) {
+      setProfileError('Failed to update profile');
+    }
   };
 
   const handleFileUpload = (file: File) => {
@@ -131,23 +151,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
           className="flex flex-col items-center gap-2 group cursor-pointer"
           onClick={() => {
             setProfileData({
-              displayName: user?.displayName || '',
-              photoURL: user?.photoURL || ''
+              displayName: displayName,
+              photoURL: photoURL
             });
             setIsProfileModalOpen(true);
           }}
         >
           <div className="relative">
             <img 
-              src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}&background=3b82f6&color=fff`} 
-              alt={user?.displayName || ''} 
+              src={photoURL} 
+              alt={displayName} 
               className="w-10 h-10 rounded-xl border border-slate-800 object-cover shadow-inner group-hover:scale-105 transition-transform duration-500"
               referrerPolicy="no-referrer"
             />
             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 border-2 border-slate-950 rounded-full animate-pulse" />
           </div>
           <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest group-hover:text-blue-400 transition-colors truncate max-w-[64px] text-center">
-            {user?.displayName || 'User'}
+            {displayName}
           </span>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, onSnapshot, db } from '../firebase';
+import { db } from '../supabase';
 import { Account, Trade } from '../types';
 import { formatCurrency, checkConsistencyRule, calculateTrailingDrawdown } from '../utils';
 import { TrendingUp, TrendingDown, Target, Activity, CheckCircle2, XCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, ShieldCheck, Sword, Skull, Info } from 'lucide-react';
@@ -18,26 +18,34 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    const qAccounts = query(collection(db, 'accounts'), where('userId', '==', user.uid));
-    const unsubscribeAccounts = onSnapshot(qAccounts, (snapshot) => {
-      const accs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+    // Initial load
+    db.accounts.list(user.id).then(accs => {
       setAccounts(accs);
       if (accs.length > 0 && !selectedAccountId) {
         setSelectedAccountId(accs[0].id!);
       }
     });
+    db.trades.list(user.id).then(setTrades);
 
-    const qTrades = query(collection(db, 'trades'), where('userId', '==', user.uid));
-    const unsubscribeTrades = onSnapshot(qTrades, (snapshot) => {
-      const trds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trade));
-      setTrades(trds);
+    // Subscribe to accounts
+    const unsubAccounts = db.accounts.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setAccounts(prev => [...prev, payload.new as Account]);
+      if (payload.eventType === 'UPDATE') setAccounts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Account : a));
+      if (payload.eventType === 'DELETE') setAccounts(prev => prev.filter(a => a.id !== payload.old.id));
+    });
+
+    // Subscribe to trades
+    const unsubTrades = db.trades.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setTrades(prev => [...prev, payload.new as Trade]);
+      if (payload.eventType === 'UPDATE') setTrades(prev => prev.map(t => t.id === payload.new.id ? payload.new as Trade : t));
+      if (payload.eventType === 'DELETE') setTrades(prev => prev.filter(t => t.id !== payload.old.id));
     });
 
     return () => {
-      unsubscribeAccounts();
-      unsubscribeTrades();
+      unsubAccounts();
+      unsubTrades();
     };
-  }, []);
+  }, [user]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
   const accountTrades = trades.filter(t => t.accountId === selectedAccountId);

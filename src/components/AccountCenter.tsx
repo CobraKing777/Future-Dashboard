@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, db, deleteDoc, doc, handleFirestoreError, OperationType, addDoc, updateDoc } from '../firebase';
+import { db } from '../supabase';
 import { Account } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, Trash2, Edit2, ShieldCheck, Sword, Skull, Info, Check, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, ShieldCheck, Sword, Skull, Check, X } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,10 +35,27 @@ export const AccountCenter: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'accounts'), where('userId', '==', user.uid));
-    return onSnapshot(q, (snapshot) => {
-      setAccounts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account)));
+    
+    // Initial load
+    db.accounts.list(user.id).then(setAccounts).catch(err => {
+      console.error("Error loading accounts:", err);
+      setError("Failed to load accounts.");
     });
+
+    // Subscribe to changes
+    const unsubscribe = db.accounts.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        setAccounts(prev => [...prev, payload.new as Account]);
+      } else if (payload.eventType === 'UPDATE') {
+        setAccounts(prev => prev.map(a => a.id === payload.new.id ? payload.new as Account : a));
+      } else if (payload.eventType === 'DELETE') {
+        setAccounts(prev => prev.filter(a => a.id !== payload.old.id));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [user]);
 
   const handleCommissionChange = (asset: string, value: number) => {
@@ -80,19 +97,16 @@ export const AccountCenter: React.FC = () => {
     try {
       const data = {
         ...formData,
-        userId: user.uid,
-        initialBalance: formData.size * 1000, // Initial balance from size
+        userId: user.id,
+        initialBalance: formData.size * 1000,
         currentBalance: editingId ? accounts.find(a => a.id === editingId)?.currentBalance : formData.size * 1000,
-        updatedAt: new Date(),
+        maxBalance: editingId ? accounts.find(a => a.id === editingId)?.maxBalance : formData.size * 1000,
       };
 
       if (editingId) {
-        await updateDoc(doc(db, 'accounts', editingId), data);
+        await db.accounts.update(editingId, data);
       } else {
-        await addDoc(collection(db, 'accounts'), {
-          ...data,
-          createdAt: new Date(),
-        });
+        await db.accounts.add(data);
       }
 
       setShowForm(false);
@@ -127,10 +141,11 @@ export const AccountCenter: React.FC = () => {
   const confirmDelete = async () => {
     if (!accountToDelete) return;
     try {
-      await deleteDoc(doc(db, 'accounts', accountToDelete));
+      await db.accounts.delete(accountToDelete);
       setAccountToDelete(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `accounts/${accountToDelete}`);
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      setError(error.message || "Failed to delete account.");
     }
   };
 

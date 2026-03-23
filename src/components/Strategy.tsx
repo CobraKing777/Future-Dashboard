@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, db, setDoc, doc, serverTimestamp, addDoc, deleteDoc, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../supabase';
 import { Strategy } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { Target, LogOut as ExitIcon, Brain, Save, CheckCircle2, AlertCircle, Info, TrendingUp, Shield, Activity, Plus, Trash2, Edit2, ChevronLeft, X, Check } from 'lucide-react';
@@ -14,7 +14,7 @@ export const StrategyCenter: React.FC = () => {
 
   const initialFormData: Strategy = {
     name: '',
-    userId: user?.uid || '',
+    userId: user?.id || '',
     entry: {
       context: '',
       marketRegime: '',
@@ -41,10 +41,14 @@ export const StrategyCenter: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, 'strategies'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedStrategies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Strategy));
-      setStrategies(fetchedStrategies);
+    // Initial load
+    db.strategies.list(user.id).then(setStrategies);
+
+    // Subscribe to strategies
+    const unsubscribe = db.strategies.subscribe(user.id, (payload) => {
+      if (payload.eventType === 'INSERT') setStrategies(prev => [...prev, payload.new as Strategy]);
+      if (payload.eventType === 'UPDATE') setStrategies(prev => prev.map(s => s.id === payload.new.id ? payload.new as Strategy : s));
+      if (payload.eventType === 'DELETE') setStrategies(prev => prev.filter(s => s.id !== payload.old.id));
     });
 
     return () => unsubscribe();
@@ -58,17 +62,17 @@ export const StrategyCenter: React.FC = () => {
     try {
       if (formData.id) {
         // Update existing
-        await setDoc(doc(db, 'strategies', formData.id), {
+        await db.strategies.update(formData.id, {
           ...formData,
-          userId: user.uid,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+          userId: user.id,
+          updatedAt: new Date().toISOString(),
+        });
       } else {
         // Create new
-        await addDoc(collection(db, 'strategies'), {
+        await db.strategies.add({
           ...formData,
-          userId: user.uid,
-          updatedAt: serverTimestamp(),
+          userId: user.id,
+          updatedAt: new Date().toISOString(),
         });
       }
       
@@ -94,10 +98,10 @@ export const StrategyCenter: React.FC = () => {
   const confirmDelete = async () => {
     if (!strategyToDelete) return;
     try {
-      await deleteDoc(doc(db, 'strategies', strategyToDelete));
+      await db.strategies.delete(strategyToDelete);
       setStrategyToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `strategies/${strategyToDelete}`);
+      console.error('Error deleting strategy:', error);
     }
   };
 

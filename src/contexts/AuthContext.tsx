@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, onAuthStateChanged, User, signInWithPopup, googleProvider, signOut } from '../firebase';
+import { supabase } from '../supabase';
+import { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -16,37 +17,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock taken usernames for demonstration
-  const [takenUsernames] = useState<string[]>(['admin', 'trader', 'pro']);
-
   useEffect(() => {
-    // Mock user for development
-    setUser({
-      uid: 'dev-user-id',
-      displayName: 'Dev Trader',
-      email: 'dev@example.com',
-      photoURL: 'https://ui-avatars.com/api/?name=Dev+Trader&background=3b82f6&color=fff'
-    } as any);
-    setLoading(false);
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for changes on auth state (logged in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setLoading(false);
+
+      if (currentUser) {
+        // Sync profile to profiles table
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: currentUser.id,
+            email: currentUser.email,
+            display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0],
+            avatar_url: currentUser.user_metadata?.avatar_url,
+            updated_at: new Date().toISOString()
+          });
+        
+        if (profileError) {
+          console.error("Error syncing profile:", profileError);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async () => {};
-  const logout = async () => {};
+  const login = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+  };
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
   const updateProfile = async (data: { displayName?: string; photoURL?: string }) => {
-    setUser(prev => prev ? { ...prev, ...data } : null);
+    const { error: authError } = await supabase.auth.updateUser({
+      data: { 
+        display_name: data.displayName,
+        avatar_url: data.photoURL
+      }
+    });
+    if (authError) throw authError;
+
+    if (user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          display_name: data.displayName,
+          avatar_url: data.photoURL,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (profileError) {
+        console.error("Error updating profile table:", profileError);
+      }
+    }
   };
 
   const isUsernameUnique = async (username: string) => {
-    // In a real app, this would query Firestore
-    // For mock, we check against takenUsernames and current user
-    if (user && username.toLowerCase() === user.displayName?.toLowerCase()) return true;
-    return !takenUsernames.includes(username.toLowerCase());
+    // In Supabase, you'd typically have a profiles table
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username)
+      .single();
+    
+    if (error && error.code === 'PGRST116') return true; // Not found
+    return !data;
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, isUsernameUnique }}>
-      {children}
-    </AuthContext.Provider>
+    <div className="min-h-screen bg-slate-950">
+      <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, isUsernameUnique }}>
+        {children}
+      </AuthContext.Provider>
+    </div>
   );
 };
 

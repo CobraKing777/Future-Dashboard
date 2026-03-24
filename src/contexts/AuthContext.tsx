@@ -7,7 +7,7 @@ interface AuthContextType {
   loading: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: { displayName?: string; photoURL?: string }) => Promise<void>;
+  updateProfile: (data: { displayName?: string; photoURL?: string; appLogoURL?: string }) => Promise<void>;
   isUsernameUnique: (username: string) => Promise<boolean>;
 }
 
@@ -18,124 +18,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for changes on auth state (logged in, signed out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setLoading(false);
-
-      if (currentUser) {
-        // Sync profile to profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: currentUser.id,
-            email: currentUser.email,
-            display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0],
-            avatar_url: currentUser.user_metadata?.avatar_url,
-            updated_at: new Date().toISOString()
-          });
-        
-        if (profileError) {
-          console.error("Error syncing profile:", profileError);
-        }
-      }
-    });
-
-    // Handle cross-tab session syncing (e.g. from login popup)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key?.includes('auth-token')) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          setUser(session?.user ?? null);
-        });
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      subscription.unsubscribe();
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    // Mock session check
+    const savedUser = localStorage.getItem('mock-user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
   const login = async () => {
-    try {
-      const isIframe = window.self !== window.top;
-      const redirectUrl = window.location.origin;
-      
-      console.log("Attempting login. In Iframe:", isIframe);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          // Only use popup/new tab if we are stuck in an iframe
-          skipBrowserRedirect: isIframe,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      });
-      
-      if (error) throw error;
-      
-      // Only manually open a window if we are in an iframe
-      if (isIframe && data?.url) {
-        window.open(data.url, '_blank');
+    setLoading(true);
+    // Mock login with a dummy user
+    const mockUser: any = {
+      id: 'dev-user-123',
+      email: 'dev@example.com',
+      user_metadata: {
+        display_name: 'Dev User',
+        avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=dev',
+        app_logo_url: '/api/attachments/a7122851-4034-4531-9025-667793656783'
       }
-    } catch (err: any) {
-      console.error("Login error:", err);
-      alert("Login failed: " + (err.message || "Please check your Supabase URL Configuration."));
-    }
+    };
+    setUser(mockUser);
+    localStorage.setItem('mock-user', JSON.stringify(mockUser));
+    setLoading(false);
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    setUser(null);
+    localStorage.removeItem('mock-user');
   };
 
-  const updateProfile = async (data: { displayName?: string; photoURL?: string }) => {
-    const { error: authError } = await supabase.auth.updateUser({
-      data: { 
-        display_name: data.displayName,
-        avatar_url: data.photoURL
-      }
-    });
-    if (authError) throw authError;
-
+  const updateProfile = async (data: { displayName?: string; photoURL?: string; appLogoURL?: string }) => {
     if (user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          display_name: data.displayName,
-          avatar_url: data.photoURL,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-      
-      if (profileError) {
-        console.error("Error updating profile table:", profileError);
-      }
+      const updatedUser = {
+        ...user,
+        user_metadata: {
+          ...user.user_metadata,
+          display_name: data.displayName || user.user_metadata?.display_name,
+          avatar_url: data.photoURL || user.user_metadata?.avatar_url,
+          app_logo_url: data.appLogoURL || user.user_metadata?.app_logo_url
+        }
+      };
+      setUser(updatedUser);
+      localStorage.setItem('mock-user', JSON.stringify(updatedUser));
     }
   };
 
   const isUsernameUnique = async (username: string) => {
-    // In Supabase, you'd typically have a profiles table
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', username)
-      .single();
-    
-    if (error && error.code === 'PGRST116') return true; // Not found
-    return !data;
+    return true;
   };
 
   return (

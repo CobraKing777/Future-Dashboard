@@ -7,14 +7,23 @@ import { TradeJournal } from './components/TradeJournal';
 import { StrategyCenter } from './components/Strategy';
 import { AIInsights } from './components/AIInsights';
 import { ReferenceTab } from './components/ReferenceTab';
+import { NewsTab } from './components/NewsTab';
 import { AuthProvider } from './contexts/AuthContext';
 import { useState } from 'react';
 
-type View = 'dashboard' | 'accounts' | 'journal' | 'ai' | 'strategy' | 'reference';
+type View = 'dashboard' | 'accounts' | 'journal' | 'ai' | 'strategy' | 'reference' | 'news';
 
 const AppContent: React.FC = () => {
   const { user, loading, login } = useAuth();
   const [currentView, setCurrentView] = useState<View>('dashboard');
+
+  React.useEffect(() => {
+    const handleSwitchTab = (e: any) => {
+      setCurrentView(e.detail as View);
+    };
+    window.addEventListener('switchTab', handleSwitchTab);
+    return () => window.removeEventListener('switchTab', handleSwitchTab);
+  }, []);
 
   if (loading) {
     return (
@@ -60,6 +69,7 @@ const AppContent: React.FC = () => {
       case 'ai': return <AIInsights />;
       case 'strategy': return <StrategyCenter />;
       case 'reference': return <ReferenceTab />;
+      case 'news': return <NewsTab />;
       default: return <Dashboard />;
     }
   };

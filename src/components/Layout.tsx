@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, Wallet, BrainCircuit, Target, LogOut, Menu, X, Upload, Check, AlertCircle, Library } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Wallet, BrainCircuit, Target, LogOut, Menu, X, Upload, Check, AlertCircle, Library, Newspaper } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -21,19 +21,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
   
   const displayName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'User';
   const photoURL = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}&background=3b82f6&color=fff`;
+  const appLogoURL = user?.user_metadata?.app_logo_url || '/api/attachments/a7122851-4034-4531-9025-667793656783';
 
   const [profileData, setProfileData] = useState({
     displayName: displayName,
-    photoURL: photoURL
+    photoURL: photoURL,
+    appLogoURL: appLogoURL
   });
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   useEffect(() => {
     if (user) {
       setProfileData({
         displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || '',
-        photoURL: user.user_metadata?.avatar_url || ''
+        photoURL: user.user_metadata?.avatar_url || '',
+        appLogoURL: user.user_metadata?.app_logo_url || ''
       });
     }
   }, [user]);
@@ -64,17 +68,24 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
     }
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = (file: File, type: 'avatar' | 'logo' = 'avatar') => {
     if (!file.type.startsWith('image/')) {
       setProfileError('Please upload an image file');
       return;
     }
 
-    setIsUploading(true);
+    if (type === 'avatar') setIsUploading(true);
+    else setIsUploadingLogo(true);
+
     const reader = new FileReader();
     reader.onloadend = () => {
-      setProfileData({ ...profileData, photoURL: reader.result as string });
-      setIsUploading(false);
+      if (type === 'avatar') {
+        setProfileData({ ...profileData, photoURL: reader.result as string });
+        setIsUploading(false);
+      } else {
+        setProfileData({ ...profileData, appLogoURL: reader.result as string });
+        setIsUploadingLogo(false);
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -95,6 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
     { id: 'journal', label: 'Journal', icon: BookOpen },
     { id: 'strategy', label: 'Strategy', icon: Target },
     { id: 'ai', label: 'AI Insights', icon: BrainCircuit },
+    { id: 'news', label: 'Economic News', icon: Newspaper },
     { id: 'reference', label: 'Reference', icon: Library },
   ];
 
@@ -103,7 +115,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       <div className="flex flex-col items-center px-2 mb-4">
         <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/10 border border-slate-800/50 hover:scale-105 transition-transform duration-500 bg-slate-900">
           <img 
-            src="/api/attachments/a7122851-4034-4531-9025-667793656783" 
+            src={appLogoURL} 
             alt="RTFT" 
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
@@ -153,7 +165,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
           onClick={() => {
             setProfileData({
               displayName: displayName,
-              photoURL: photoURL
+              photoURL: photoURL,
+              appLogoURL: appLogoURL
             });
             setIsProfileModalOpen(true);
           }}
@@ -190,16 +203,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row">
       {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-xl flex items-center justify-center">
-            <div className="w-4 h-4 bg-white rounded-sm rotate-45" />
+      <header className="md:hidden flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/90 backdrop-blur-xl sticky top-0 z-[100] shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-slate-800">
+            <img 
+              src={appLogoURL} 
+              alt="Logo" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <span className="font-black tracking-tighter text-xl font-display text-white">FUTURES</span>
+          <span className="font-black tracking-tighter text-xl font-display text-white">RTFT</span>
         </div>
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 text-slate-400 hover:text-white transition-colors"
+          className="p-3 -mr-2 text-slate-400 hover:text-white transition-all active:scale-95 bg-slate-900/50 rounded-xl border border-slate-800"
         >
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -240,7 +258,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
               </div>
             )}
             
-            <form onSubmit={handleProfileUpdate} className="space-y-6">
+            <form onSubmit={handleProfileUpdate} className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
               <div className="space-y-2">
                 <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Username</label>
                 <input
@@ -252,38 +270,81 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Profile Picture</label>
-                <div 
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onPaste={(e) => {
-                    const item = e.clipboardData.items[0];
-                    if (item?.type.indexOf('image') !== -1) {
-                      const file = item.getAsFile();
-                      if (file) handleFileUpload(file);
-                    }
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.focus()}
-                  tabIndex={0}
-                  className="relative group cursor-pointer outline-none"
-                >
-                  <div className="w-full h-40 bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-3 hover:border-blue-500/50 transition-all overflow-hidden focus:border-blue-500/50">
-                    {profileData.photoURL ? (
-                      <img src={profileData.photoURL} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
-                    ) : (
-                      <Upload size={32} className="text-zinc-600 group-hover:text-blue-500 transition-colors" />
-                    )}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center space-y-2">
-                      <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">
-                        {isUploading ? 'Uploading...' : 'Drag & Drop or Click to Upload'}
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">Profile Picture</label>
+                  <div 
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    onPaste={(e) => {
+                      const item = e.clipboardData.items[0];
+                      if (item?.type.indexOf('image') !== -1) {
+                        const file = item.getAsFile();
+                        if (file) handleFileUpload(file, 'avatar');
+                      }
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.focus()}
+                    tabIndex={0}
+                    className="relative group cursor-pointer outline-none"
+                  >
+                    <div className="w-full h-32 bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-2 hover:border-blue-500/50 transition-all overflow-hidden focus:border-blue-500/50">
+                      {profileData.photoURL ? (
+                        <img src={profileData.photoURL} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                      ) : (
+                        <Upload size={24} className="text-zinc-600 group-hover:text-blue-500 transition-colors" />
+                      )}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <p className="text-[8px] text-zinc-500 uppercase font-black tracking-widest text-center px-2">
+                          {isUploading ? 'Uploading...' : 'Avatar'}
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'avatar')}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest ml-1">App Logo</label>
+                  <div 
+                    onDragOver={onDragOver}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files[0];
+                      if (file) handleFileUpload(file, 'logo');
+                    }}
+                    onPaste={(e) => {
+                      const item = e.clipboardData.items[0];
+                      if (item?.type.indexOf('image') !== -1) {
+                        const file = item.getAsFile();
+                        if (file) handleFileUpload(file, 'logo');
+                      }
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.focus()}
+                    tabIndex={0}
+                    className="relative group cursor-pointer outline-none"
+                  >
+                    <div className="w-full h-32 bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl flex flex-col items-center justify-center space-y-2 hover:border-blue-500/50 transition-all overflow-hidden focus:border-blue-500/50">
+                      {profileData.appLogoURL ? (
+                        <img src={profileData.appLogoURL} alt="Preview" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                      ) : (
+                        <Upload size={24} className="text-zinc-600 group-hover:text-blue-500 transition-colors" />
+                      )}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <p className="text-[8px] text-zinc-500 uppercase font-black tracking-widest text-center px-2">
+                          {isUploadingLogo ? 'Uploading...' : 'App Logo'}
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'logo')}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

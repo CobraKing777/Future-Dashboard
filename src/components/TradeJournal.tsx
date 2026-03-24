@@ -3,7 +3,7 @@ import { db } from '../supabase';
 import { Trade, Account, Strategy, TradeExit } from '../types';
 import { formatCurrency, calculatePnL, calculateExitPnL, calculateRiskReward, cn } from '../utils';
 import { InfoTooltip } from './InfoTooltip';
-import { Plus, Calendar, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, ChevronUp, Image as ImageIcon, X, Target, LogOut as ExitIcon, Brain, Info, Shield, Activity, TrendingUp, Edit2, Trash2, Check } from 'lucide-react';
+import { Plus, Calendar, ArrowUpRight, ArrowDownRight, Filter, ChevronDown, ChevronUp, Image as ImageIcon, X, Target, LogOut as ExitIcon, Brain, Info, Shield, Activity, TrendingUp, Edit2, Trash2, Check, ChevronRight } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -352,24 +352,27 @@ export const TradeJournal: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-bold font-mono">TRADE JOURNAL</h1>
           <p className="text-xs sm:text-sm text-zinc-500">Record and analyze every execution.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-8">
           <button
             onClick={() => setShowClearConfirm(true)}
             disabled={isClearingAll}
-            className="flex-1 sm:flex-none px-3 py-2 bg-red-500/10 text-red-400 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
+            className="flex-1 sm:flex-none px-4 py-2.5 bg-red-500/10 text-red-400 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50"
           >
             {isClearingAll ? 'Clearing...' : 'Clear All'}
           </button>
-          <select
-            value={selectedAccountId || ''}
-            onChange={(e) => setSelectedAccountId(e.target.value || null)}
-            className="flex-1 sm:flex-none bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
-          >
-            <option value="">All Accounts</option>
-            {accounts.map(acc => (
-              <option key={acc.id} value={acc.id}>{acc.name}</option>
-            ))}
-          </select>
+          <div className="relative group flex-1 sm:flex-none min-w-[200px]">
+            <select
+              value={selectedAccountId || ''}
+              onChange={(e) => setSelectedAccountId(e.target.value || null)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-4 pr-12 py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+            >
+              <option value="">All Accounts</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>{acc.name}</option>
+              ))}
+            </select>
+            <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+          </div>
           <button
             onClick={() => {
               if (!showForm) {
@@ -383,14 +386,14 @@ export const TradeJournal: React.FC = () => {
             }}
             disabled={isNoAccountSelected || isFailed}
             className={cn(
-              "w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all shrink-0",
+              "w-12 h-12 rounded-xl font-bold flex items-center justify-center transition-all shrink-0",
               isNoAccountSelected || isFailed
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 : "bg-blue-500 text-white hover:bg-blue-400 shadow-lg shadow-blue-500/20"
             )}
             title={isNoAccountSelected ? "Select an account to log a trade" : isFailed ? "Cannot log trades for a failed account" : "New Trade"}
           >
-            <Plus size={20} />
+            <Plus size={24} />
           </button>
         </div>
       </header>
@@ -436,31 +439,37 @@ export const TradeJournal: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <div className="space-y-2">
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Account</label>
-              <select
-                required
-                value={formData.accountId}
-                onChange={e => setFormData({ ...formData, accountId: e.target.value })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-              >
-                {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>{acc.name}</option>
-                ))}
-              </select>
+              <div className="relative group">
+                <select
+                  required
+                  value={formData.accountId}
+                  onChange={e => setFormData({ ...formData, accountId: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+                >
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+                <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Asset</label>
-              <select
-                value={formData.asset}
-                onChange={e => setFormData({ ...formData, asset: e.target.value as any })}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-              >
-                <option value="NQ">NQ</option>
-                <option value="MNQ">MNQ</option>
-                <option value="ES">ES</option>
-                <option value="MES">MES</option>
-                <option value="GC">GC</option>
-                <option value="MGC">MGC</option>
-              </select>
+              <div className="relative group">
+                <select
+                  value={formData.asset}
+                  onChange={e => setFormData({ ...formData, asset: e.target.value as any })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+                >
+                  <option value="NQ">NQ</option>
+                  <option value="MNQ">MNQ</option>
+                  <option value="ES">ES</option>
+                  <option value="MES">MES</option>
+                  <option value="GC">GC</option>
+                  <option value="MGC">MGC</option>
+                </select>
+                <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Date</label>
@@ -569,42 +578,48 @@ export const TradeJournal: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Reason</label>
-                    <select
-                      value={exit.reason}
-                      onChange={e => {
-                        const newExits = [...formData.exits];
-                        newExits[index].reason = e.target.value as any;
-                        // Default logic to Structural when changing reason
-                        if (!newExits[index].logic) newExits[index].logic = 'Structural';
-                        setFormData({ ...formData, exits: newExits });
-                      }}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                    >
-                      <option value="TP">Take Profit</option>
-                      <option value="SL">Stop Loss</option>
-                      <option value="Partial Closed">Partial Closed</option>
-                      <option value="Cut Loss">Cut Loss</option>
-                      <option value="Breakeven">Breakeven</option>
-                    </select>
+                    <div className="relative group">
+                      <select
+                        value={exit.reason}
+                        onChange={e => {
+                          const newExits = [...formData.exits];
+                          newExits[index].reason = e.target.value as any;
+                          // Default logic to Structural when changing reason
+                          if (!newExits[index].logic) newExits[index].logic = 'Structural';
+                          setFormData({ ...formData, exits: newExits });
+                        }}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+                      >
+                        <option value="TP">Take Profit</option>
+                        <option value="SL">Stop Loss</option>
+                        <option value="Partial Closed">Partial Closed</option>
+                        <option value="Cut Loss">Cut Loss</option>
+                        <option value="Breakeven">Breakeven</option>
+                      </select>
+                      <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit Logic</label>
-                    <select
-                      value={exit.logic || 'Structural'}
-                      disabled={!['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason)}
-                      onChange={e => {
-                        const newExits = [...formData.exits];
-                        newExits[index].logic = e.target.value as any;
-                        setFormData({ ...formData, exits: newExits });
-                      }}
-                      className={cn(
-                        "w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700",
-                        !['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason) && "opacity-50 cursor-not-allowed"
-                      )}
-                    >
-                      <option value="Structural">Structural</option>
-                      <option value="Mental">Mental (Fear/Greed)</option>
-                    </select>
+                    <div className="relative group">
+                      <select
+                        value={exit.logic || 'Structural'}
+                        disabled={!['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason)}
+                        onChange={e => {
+                          const newExits = [...formData.exits];
+                          newExits[index].logic = e.target.value as any;
+                          setFormData({ ...formData, exits: newExits });
+                        }}
+                        className={cn(
+                          "w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer",
+                          !['Partial Closed', 'Cut Loss', 'Breakeven'].includes(exit.reason) && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        <option value="Structural">Structural</option>
+                        <option value="Mental">Mental (Fear/Greed)</option>
+                      </select>
+                      <ChevronRight size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+                    </div>
                   </div>
                   <div className="flex items-end gap-2">
                     <button
@@ -640,16 +655,19 @@ export const TradeJournal: React.FC = () => {
                 </div>
                 <span className="text-[10px] text-zinc-600 font-bold uppercase">Required for tracking</span>
               </div>
-              <select
-                value={formData.strategyId}
-                onChange={e => setFormData(prev => ({ ...prev, strategyId: e.target.value }))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all text-sm text-zinc-200"
-              >
-                <option value="">Select a Strategy...</option>
-                {strategies.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <div className="relative group">
+                <select
+                  value={formData.strategyId}
+                  onChange={e => setFormData(prev => ({ ...prev, strategyId: e.target.value }))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all text-sm text-zinc-200 appearance-none cursor-pointer"
+                >
+                  <option value="">Select a Strategy...</option>
+                  {strategies.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+              </div>
               {strategies.length === 0 && (
                 <p className="text-[10px] text-red-400 font-medium italic">
                   No strategies found. Go to the Strategy tab to create one.
@@ -692,31 +710,37 @@ export const TradeJournal: React.FC = () => {
                     </button>
                   )}
                 </div>
-                <select
-                  value={formData.marketRegime}
-                  onChange={e => setFormData({ ...formData, marketRegime: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                >
-                  <option value="">Select Regime</option>
-                  <option value="HRLR">HRLR</option>
-                  <option value="LRLR">LRLR</option>
-                  <option value="Trending">Trending</option>
-                  <option value="Volatile">Volatile</option>
-                </select>
+                <div className="relative group">
+                  <select
+                    value={formData.marketRegime}
+                    onChange={e => setFormData({ ...formData, marketRegime: e.target.value })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Regime</option>
+                    <option value="HRLR">HRLR</option>
+                    <option value="LRLR">LRLR</option>
+                    <option value="Trending">Trending</option>
+                    <option value="Volatile">Volatile</option>
+                  </select>
+                  <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs text-zinc-500 uppercase font-bold tracking-widest">Psychology Status</label>
-                <select
-                  value={formData.psychologyStatus}
-                  onChange={e => setFormData({ ...formData, psychologyStatus: e.target.value as any })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700"
-                >
-                  <option value="Calm">Calm</option>
-                  <option value="Flow">Flow</option>
-                  <option value="Fear">Fear</option>
-                  <option value="Greed">Greed</option>
-                  <option value="Exhausted">Exhausted</option>
-                </select>
+                <div className="relative group">
+                  <select
+                    value={formData.psychologyStatus}
+                    onChange={e => setFormData({ ...formData, psychologyStatus: e.target.value as any })}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-zinc-700 appearance-none cursor-pointer"
+                  >
+                    <option value="Calm">Calm</option>
+                    <option value="Flow">Flow</option>
+                    <option value="Fear">Fear</option>
+                    <option value="Greed">Greed</option>
+                    <option value="Exhausted">Exhausted</option>
+                  </select>
+                  <ChevronRight size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 rotate-90 pointer-events-none group-hover:text-zinc-300 transition-colors" />
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1003,8 +1027,6 @@ export const TradeJournal: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Entry Price</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exit Price</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">PL</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Drawdown</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Runup</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Commission</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Strategy</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Reason</th>
@@ -1050,12 +1072,6 @@ export const TradeJournal: React.FC = () => {
                             calculateExitPnL(trade.asset, trade.direction, trade.entryPrice, exit.price, exit.contracts) >= 0 ? "text-blue-400" : "text-red-400"
                           )}>
                             {formatCurrency(calculateExitPnL(trade.asset, trade.direction, trade.entryPrice, exit.price, exit.contracts))}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-red-400/70 font-mono text-center">
-                            -
-                          </td>
-                          <td className="px-6 py-4 text-sm text-blue-400/70 font-mono text-center">
-                            -
                           </td>
                           <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
                             {exitIdx === 0 ? `-${formatCurrency(trade.commission || 0)}` : ''}
@@ -1155,19 +1171,18 @@ export const TradeJournal: React.FC = () => {
                       ))
                     ) : (
                       <tr className="hover:bg-zinc-800/30 transition-colors group">
-                        <td className="px-6 py-4 text-sm font-medium text-zinc-400">
-                          {new Date(trade.date).toLocaleDateString()}
-                        </td>
                         <td className="px-6 py-4">
                           <span className="text-sm font-bold font-mono">{trade.asset}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium text-zinc-400">
+                          {new Date(trade.date).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
                           <div className={cn(
                             "flex items-center gap-1 text-xs font-bold",
                             trade.direction === 'Long' ? "text-blue-400" : "text-red-400"
                           )}>
-                            {trade.direction === 'Long' ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                            {trade.direction}
+                            {trade.direction === 'Long' ? '+' : '-'}{trade.contractSize}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-mono">{trade.entryPrice}</td>
@@ -1181,22 +1196,11 @@ export const TradeJournal: React.FC = () => {
                         <td className="px-6 py-4 text-sm text-red-400/70 font-mono">
                           -{formatCurrency(trade.commission || 0)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-zinc-500 font-mono">{trade.riskReward}</td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             {trade.strategyId && (
                               <span className="text-[9px] text-purple-400 font-black uppercase tracking-tighter">
                                 {strategies.find(s => s.id === trade.strategyId)?.name || 'Unknown Strategy'}
-                              </span>
-                            )}
-                            {trade.psychologyStatus && (
-                              <span className={cn(
-                                "text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter w-fit",
-                                trade.psychologyStatus === 'Flow' || trade.psychologyStatus === 'Calm' ? "bg-blue-500/10 text-blue-400" :
-                                trade.psychologyStatus === 'Fear' || trade.psychologyStatus === 'Greed' ? "bg-red-500/10 text-red-400" :
-                                "bg-zinc-800 text-zinc-400"
-                              )}>
-                                {trade.psychologyStatus}
                               </span>
                             )}
                           </div>
@@ -1358,16 +1362,6 @@ export const TradeJournal: React.FC = () => {
                     <h4 className="text-xs font-black uppercase tracking-widest">Performance</h4>
                   </div>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Drawdown (MAE):</span>
-                      {/* <span className="text-sm font-mono font-bold text-red-400">-{formatCurrency(viewingTrade.mae || 0)}</span> */}
-                      <span className="text-sm font-mono font-bold text-red-400">-</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase">Runup (MFE):</span>
-                      {/* <span className="text-sm font-mono font-bold text-blue-400">{formatCurrency(viewingTrade.mfe || 0)}</span> */}
-                      <span className="text-sm font-mono font-bold text-blue-400">-</span>
-                    </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-zinc-500 font-bold uppercase">Risk:Reward:</span>
                       <span className="text-sm font-mono font-bold text-zinc-100">{viewingTrade.riskReward?.toFixed(2) || 'N/A'}</span>

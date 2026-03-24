@@ -191,19 +191,40 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className={cn("space-y-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-700", selectedAccount?.type === 'Failed' ? "grayscale opacity-60" : "")}>
+      {accounts.length === 0 && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+              <Wallet size={32} className="text-blue-400" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-white font-display">No Trading Accounts Found</h3>
+              <p className="text-slate-400 font-medium">You need to create an account to start tracking your performance.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('switchTab', { detail: 'accounts' }))}
+            className="w-full md:w-auto px-8 py-4 bg-blue-500 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3 group"
+          >
+            Go to Accounts
+            <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      )}
+
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="space-y-1">
           <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white font-display">DASHBOARD</h1>
           <p className="text-slate-400 font-medium">Real-time overview of your trading performance.</p>
         </div>
-        <div className="relative group flex items-center">
-          <div className="absolute left-6 z-10 pointer-events-none">
+        <div className="relative group flex items-center w-full sm:w-auto">
+          <div className="absolute left-4 sm:left-6 z-10 pointer-events-none">
             {selectedAccount && getStatusIcon(selectedAccount.type)}
           </div>
           <select
             value={selectedAccountId || ''}
             onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="bg-slate-900/50 border border-slate-800 text-white rounded-2xl pl-14 pr-12 py-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none cursor-pointer min-w-[280px] shadow-xl"
+            className="w-full sm:min-w-[280px] bg-slate-900/50 border border-slate-800 text-white rounded-2xl pl-12 sm:pl-14 pr-10 sm:pr-12 py-3 sm:py-4 text-xs sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all appearance-none cursor-pointer shadow-xl"
           >
             {accounts.map(acc => (
               <option key={acc.id} value={acc.id} className="bg-slate-900 text-white">
@@ -211,8 +232,8 @@ export const Dashboard: React.FC = () => {
               </option>
             ))}
           </select>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-blue-400 transition-colors">
-            <ChevronRight size={18} className="rotate-90" />
+          <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-hover:text-blue-400 transition-colors">
+            <ChevronRight size={16} className="rotate-90" />
           </div>
         </div>
       </header>
